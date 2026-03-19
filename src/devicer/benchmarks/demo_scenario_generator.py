@@ -6,6 +6,7 @@ Shows realistic adversarial scenarios and their characteristics
 
 from __future__ import annotations
 
+import copy
 from typing import Any, Dict, List
 
 from scenario_generator import (
@@ -14,6 +15,7 @@ from scenario_generator import (
     get_scenario_types,
     get_scenario_categories,
 )
+from data_generator import create_base_fingerprint
 from metrics import ScoredPair, calculate_metrics, calculate_true_eer
 from scoring_breakdown import decompose_confidence, format_breakdown
 
@@ -42,6 +44,31 @@ def _average(values: List[float]) -> float:
     return (sum(values) / len(values)) if values else 0.0
 
 
+def _band(value: float, low_to_med: float, med_to_high: float) -> str:
+    if value < low_to_med:
+        return "low"
+    if value < med_to_high:
+        return "med"
+    return "high"
+
+
+def _expected_band_set(spec: str) -> set[str]:
+    mapping = {
+        "low": "low",
+        "med": "med",
+        "medium": "med",
+        "high": "high",
+    }
+    tokens = [tok.strip().lower() for tok in spec.replace("-", "/").split("/") if tok.strip()]
+    normalized = {mapping.get(tok, tok) for tok in tokens}
+    return {tok for tok in normalized if tok in {"low", "med", "high"}}
+
+
+def _band_matches(spec: str, observed: str) -> bool:
+    expected = _expected_band_set(spec)
+    return observed in expected if expected else False
+
+
 def _as_metric_inputs(pairs: List[Dict[str, Any]], score_key: str) -> List[ScoredPair]:
     return [
         {
@@ -51,6 +78,161 @@ def _as_metric_inputs(pairs: List[Dict[str, Any]], score_key: str) -> List[Score
         }
         for pair in pairs
     ]
+
+
+def _sparsify_fingerprint(fp: Dict[str, Any]) -> Dict[str, Any]:
+    keep_fields = [
+        "userAgent",
+        "platform",
+        "timezone",
+        "language",
+        "languages",
+        "hardwareConcurrency",
+        "deviceMemory",
+        "screen",
+    ]
+    sparse: Dict[str, Any] = {}
+    for field in keep_fields:
+        if field in fp:
+            sparse[field] = copy.deepcopy(fp[field])
+    return sparse
+
+
+def demo_trust_semantics_truth_table():
+    """Demo: targeted semantic checks for trust/commonness layer."""
+    print("\n" + "=" * 70)
+    print("DEMO 9: Trust/Commonness Semantic Truth Table")
+    print("=" * 70)
+
+    # Fixed seeds keep this table stable across runs.
+    tor_pair = generate_scenario_pair("PrivacyHardening/TorBrowser", seed=91001)
+    corporate_pair = generate_scenario_pair("CommodityCollision/CorporateFleet", seed=91002)
+    minor_pair = generate_scenario_pair("BrowserDrift/Minor", seed=91003)
+    cross_pair = generate_scenario_pair("BrowserDrift/CrossBrowser", seed=91004)
+
+    base_a = create_base_fingerprint(13579)
+    base_b = create_base_fingerprint(24680)
+    sparse_a = _sparsify_fingerprint(base_a)
+    sparse_b = _sparsify_fingerprint(base_b)
+
+    cases = [
+        {
+            "case": "Tor vs Tor (different users)",
+            "fp1": tor_pair.fp1,
+            "fp2": tor_pair.fp2,
+            "expected_match": False,
+            "should_commonness": "high",
+            "should_distinctiveness": "low",
+            "should_insufficiency": "low",
+            "should_trust_adjustment": "high",
+        },
+        {
+            "case": "Corporate fleet (different users)",
+            "fp1": corporate_pair.fp1,
+            "fp2": corporate_pair.fp2,
+            "expected_match": False,
+            "should_commonness": "high",
+            "should_distinctiveness": "low",
+            "should_insufficiency": "low",
+            "should_trust_adjustment": "high",
+        },
+        {
+            "case": "Minor drift (same device)",
+            "fp1": minor_pair.fp1,
+            "fp2": minor_pair.fp2,
+            "expected_match": True,
+            "should_commonness": "low/med",
+            "should_distinctiveness": "med/high",
+            "should_insufficiency": "low",
+            "should_trust_adjustment": "low",
+        },
+        {
+            "case": "Cross-browser (same device)",
+            "fp1": cross_pair.fp1,
+            "fp2": cross_pair.fp2,
+            "expected_match": True,
+            "should_commonness": "low/med",
+            "should_distinctiveness": "med/high",
+            "should_insufficiency": "low/med",
+            "should_trust_adjustment": "low/med",
+        },
+        {
+            "case": "Sparse fp (same device)",
+            "fp1": base_a,
+            "fp2": sparse_a,
+            "expected_match": True,
+            "should_commonness": "med/high",
+            "should_distinctiveness": "low/med",
+            "should_insufficiency": "high",
+            "should_trust_adjustment": "med",
+        },
+        {
+            "case": "Sparse fp (different device)",
+            "fp1": sparse_a,
+            "fp2": sparse_b,
+            "expected_match": False,
+            "should_commonness": "high",
+            "should_distinctiveness": "low",
+            "should_insufficiency": "high",
+            "should_trust_adjustment": "med/high",
+        },
+    ]
+
+    rows: List[Dict[str, Any]] = []
+    for case in cases:
+        breakdown = decompose_confidence(case["fp1"], case["fp2"], top_n=0)
+        raw_same_device = breakdown.raw_profile_scores.get("same_device", breakdown.raw_similarity_score)
+        final_same_device = breakdown.profile_scores.get("same_device", breakdown.overall_confidence)
+        # Metric-aware bands:
+        # - commonness/distinctiveness are 0-100 style.
+        # - trust adjustment is in score points; values >20 are already substantial.
+        commonness_band = _band(breakdown.commonness_score, low_to_med=40.0, med_to_high=70.0)
+        distinctiveness_band = _band(breakdown.distinctiveness_score, low_to_med=40.0, med_to_high=70.0)
+        insufficiency_band = _band(breakdown.insufficiency_risk, low_to_med=35.0, med_to_high=65.0)
+        trust_band = _band(breakdown.trust_adjustment, low_to_med=8.0, med_to_high=20.0)
+
+        commonness_ok = _band_matches(case["should_commonness"], commonness_band)
+        distinctiveness_ok = _band_matches(case["should_distinctiveness"], distinctiveness_band)
+        insufficiency_ok = _band_matches(case["should_insufficiency"], insufficiency_band)
+        trust_ok = _band_matches(case["should_trust_adjustment"], trust_band)
+        pass_count = int(commonness_ok) + int(distinctiveness_ok) + int(insufficiency_ok) + int(trust_ok)
+
+        mismatches: List[str] = []
+        if not commonness_ok:
+            mismatches.append("commonness")
+        if not distinctiveness_ok:
+            mismatches.append("distinctiveness")
+        if not insufficiency_ok:
+            mismatches.append("insufficiency")
+        if not trust_ok:
+            mismatches.append("trust")
+
+        rows.append(
+            {
+                "case": case["case"],
+                "expected_match": case["expected_match"],
+                "raw_device_similarity": raw_same_device,
+                "commonness": breakdown.commonness_score,
+                "distinctiveness": breakdown.distinctiveness_score,
+                "collision_risk": breakdown.collision_risk,
+                "insufficiency_risk": breakdown.insufficiency_risk,
+                "trust_adjustment": breakdown.trust_adjustment,
+                "final_profile_score": final_same_device,
+                "obs_commonness_band": commonness_band,
+                "obs_distinctiveness_band": distinctiveness_band,
+                "obs_insufficiency_band": insufficiency_band,
+                "obs_trust_band": trust_band,
+                "should_commonness": case["should_commonness"],
+                "should_distinctiveness": case["should_distinctiveness"],
+                "should_insufficiency": case["should_insufficiency"],
+                "should_trust_adjustment": case["should_trust_adjustment"],
+                "semantic_check": "PASS" if pass_count == 4 else f"FAIL ({pass_count}/4)",
+                "semantic_mismatches": ",".join(mismatches) if mismatches else "-",
+                "policy_flags": ",".join(breakdown.policy_flags) if breakdown.policy_flags else "-",
+            }
+        )
+
+    print(_format_table(rows))
 
 
 def demo_single_scenarios():
@@ -79,11 +261,22 @@ def demo_single_scenarios():
         # Quick score
         breakdown = decompose_confidence(pair.fp1, pair.fp2, top_n=3)
         profile_scores = breakdown.profile_scores
+        raw_profile_scores = breakdown.raw_profile_scores
         print(f"Overall Confidence: {breakdown.overall_confidence:.1f}/100")
+        print(f"Raw Similarity: {breakdown.raw_similarity_score:.1f}/100")
+        print(f"Collision Risk: {breakdown.collision_risk:.1f}/100")
+        print(f"Insufficiency Risk: {breakdown.insufficiency_risk:.1f}/100")
+        print(f"Trust Adjustment: -{breakdown.trust_adjustment:.1f}")
+        print(f"Distinctiveness: {breakdown.distinctiveness_score:.1f}/100")
+        print(f"Commonness: {breakdown.commonness_score:.1f}/100")
         print(f"Same Instance: {profile_scores.get('same_instance', breakdown.overall_confidence):.1f}/100")
         print(f"Same Environment: {profile_scores.get('same_environment', breakdown.overall_confidence):.1f}/100")
         print(f"Same Device: {profile_scores.get('same_device', breakdown.overall_confidence):.1f}/100")
         print(f"Same Entity: {profile_scores.get('same_entity', breakdown.overall_confidence):.1f}/100")
+        print(
+            f"Raw Same Device: "
+            f"{raw_profile_scores.get('same_device', breakdown.raw_similarity_score):.1f}/100"
+        )
         print(f"Entropy Contribution: {breakdown.entropy_contribution:.1f}/100")
         print(f"Attractor Risk: {breakdown.attractor_risk:.1f}/100")
 
@@ -277,7 +470,13 @@ def demo_profiled_scenario_benchmark():
                 "difficulty": pair.metadata.difficulty,
                 "sameDevice": pair.metadata.expected_match,
                 "isAttractor": pair.metadata.difficulty == "extreme",
+                "raw_overall": breakdown.raw_similarity_score,
                 "overall": breakdown.overall_confidence,
+                "trust_adjustment": breakdown.trust_adjustment,
+                "collision_risk": breakdown.collision_risk,
+                "insufficiency_risk": breakdown.insufficiency_risk,
+                "distinctiveness": breakdown.distinctiveness_score,
+                "commonness": breakdown.commonness_score,
                 "same_instance": profile_scores.get("same_instance", breakdown.overall_confidence),
                 "same_environment": profile_scores.get("same_environment", breakdown.overall_confidence),
                 "same_device": profile_scores.get("same_device", breakdown.overall_confidence),
@@ -288,6 +487,7 @@ def demo_profiled_scenario_benchmark():
         )
 
     metrics_by_score = {
+        "raw_overall": calculate_metrics(_as_metric_inputs(scored_pairs, "raw_overall")),
         "overall": calculate_metrics(_as_metric_inputs(scored_pairs, "overall")),
         "same_instance": calculate_metrics(_as_metric_inputs(scored_pairs, "same_instance")),
         "same_environment": calculate_metrics(_as_metric_inputs(scored_pairs, "same_environment")),
@@ -307,6 +507,7 @@ def demo_profiled_scenario_benchmark():
         threshold_f1_rows.append(
             {
                 "threshold": overall_row.threshold,
+                "raw_overall_f1": metrics_by_score["raw_overall"][index].f1,
                 "overall_f1": overall_row.f1,
                 "instance_f1": instance_row.f1,
                 "environment_f1": environment_row.f1,
@@ -317,6 +518,7 @@ def demo_profiled_scenario_benchmark():
         threshold_gap_rows.append(
             {
                 "threshold": overall_row.threshold,
+                "raw_overall_gap": metrics_by_score["raw_overall"][index].far_frr_gap,
                 "overall_gap": overall_row.far_frr_gap,
                 "instance_gap": instance_row.far_frr_gap,
                 "environment_gap": environment_row.far_frr_gap,
@@ -337,7 +539,13 @@ def demo_profiled_scenario_benchmark():
                 "scenario_type": scenario_type,
                 "pairs": len(bucket),
                 "expected_match_pct": _average([100.0 if b["sameDevice"] else 0.0 for b in bucket]),
+                "raw_overall_mean": _average([float(b["raw_overall"]) for b in bucket]),
                 "overall_mean": _average([float(b["overall"]) for b in bucket]),
+                "trust_adjustment_mean": _average([float(b["trust_adjustment"]) for b in bucket]),
+                "collision_risk_mean": _average([float(b["collision_risk"]) for b in bucket]),
+                "insufficiency_risk_mean": _average([float(b["insufficiency_risk"]) for b in bucket]),
+                "distinctiveness_mean": _average([float(b["distinctiveness"]) for b in bucket]),
+                "commonness_mean": _average([float(b["commonness"]) for b in bucket]),
                 "instance_mean": _average([float(b["same_instance"]) for b in bucket]),
                 "environment_mean": _average([float(b["same_environment"]) for b in bucket]),
                 "device_mean": _average([float(b["same_device"]) for b in bucket]),
@@ -368,7 +576,7 @@ def demo_profiled_scenario_benchmark():
         for row in metrics_by_score["overall"]
     ]
     summary_rows = []
-    for name in ["overall", "same_instance", "same_environment", "same_device", "same_entity"]:
+    for name in ["raw_overall", "overall", "same_instance", "same_environment", "same_device", "same_entity"]:
         best = best_by_score[name]
         eer = true_eer_by_score[name]
         summary_rows.append(
@@ -405,6 +613,7 @@ def main():
     demo_dataset_generation()
     demo_custom_distribution()
     demo_profiled_scenario_benchmark()
+    demo_trust_semantics_truth_table()
     
     print("\n" + "=" * 70)
     print("All scenarios available:")
