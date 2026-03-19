@@ -59,9 +59,15 @@ def _score_pair(
     same_device: bool,
 ) -> Dict[str, Any]:
     breakdown = decompose_confidence(left.data, right.data, top_n=0)
+    profile_scores = breakdown.profile_scores
     return {
         "legacyScore": float(calculate_confidence(left.data, right.data)),
-        "breakdownScore": float(breakdown.overall_confidence),
+        "breakdownScore": float(profile_scores.get("same_device", breakdown.overall_confidence)),
+        "same_instance": float(profile_scores.get("same_instance", breakdown.overall_confidence)),
+        "same_environment": float(profile_scores.get("same_environment", breakdown.overall_confidence)),
+        "same_device": float(profile_scores.get("same_device", breakdown.overall_confidence)),
+        "same_entity": float(profile_scores.get("same_entity", breakdown.overall_confidence)),
+        "evidenceRichness": float(breakdown.evidence_richness),
         "deviceSimilarity": float(breakdown.device_similarity),
         "entropyContribution": float(breakdown.entropy_contribution),
         "attractorRisk": float(breakdown.attractor_risk),
@@ -144,20 +150,41 @@ def demo_large_dataset_comparison():
 
     pairs = _generate_comparison_pairs(groups, iterations=2500)
 
-    legacy_results = calculate_metrics(_as_metric_inputs(pairs, "legacyScore"))
-    breakdown_results = calculate_metrics(_as_metric_inputs(pairs, "breakdownScore"))
+    metrics_by_score = {
+        "legacy": calculate_metrics(_as_metric_inputs(pairs, "legacyScore")),
+        "same_instance": calculate_metrics(_as_metric_inputs(pairs, "same_instance")),
+        "same_environment": calculate_metrics(_as_metric_inputs(pairs, "same_environment")),
+        "same_device": calculate_metrics(_as_metric_inputs(pairs, "same_device")),
+        "same_entity": calculate_metrics(_as_metric_inputs(pairs, "same_entity")),
+    }
 
-    threshold_rows: List[Dict[str, Any]] = []
-    for legacy_row, breakdown_row in zip(legacy_results, breakdown_results):
-        threshold_rows.append(
+    threshold_f1_rows: List[Dict[str, Any]] = []
+    threshold_eer_rows: List[Dict[str, Any]] = []
+    for index in range(len(metrics_by_score["legacy"])):
+        legacy_row = metrics_by_score["legacy"][index]
+        instance_row = metrics_by_score["same_instance"][index]
+        env_row = metrics_by_score["same_environment"][index]
+        device_row = metrics_by_score["same_device"][index]
+        entity_row = metrics_by_score["same_entity"][index]
+
+        threshold_f1_rows.append(
             {
                 "threshold": legacy_row.threshold,
                 "legacy_f1": legacy_row.f1,
-                "breakdown_f1": breakdown_row.f1,
-                "f1_delta": breakdown_row.f1 - legacy_row.f1,
+                "instance_f1": instance_row.f1,
+                "environment_f1": env_row.f1,
+                "device_f1": device_row.f1,
+                "entity_f1": entity_row.f1,
+            }
+        )
+        threshold_eer_rows.append(
+            {
+                "threshold": legacy_row.threshold,
                 "legacy_eer": legacy_row.eer,
-                "breakdown_eer": breakdown_row.eer,
-                "eer_delta": legacy_row.eer - breakdown_row.eer,
+                "instance_eer": instance_row.eer,
+                "environment_eer": env_row.eer,
+                "device_eer": device_row.eer,
+                "entity_eer": entity_row.eer,
             }
         )
 
@@ -178,9 +205,11 @@ def demo_large_dataset_comparison():
                 "cohort": name,
                 "pairs": len(bucket),
                 "legacy_mean": _average([float(p["legacyScore"]) for p in bucket]),
-                "breakdown_mean": _average([float(p["breakdownScore"]) for p in bucket]),
-                "device_similarity_mean": _average([float(p["deviceSimilarity"]) for p in bucket]),
-                "entropy_mean": _average([float(p["entropyContribution"]) for p in bucket]),
+                "same_instance_mean": _average([float(p["same_instance"]) for p in bucket]),
+                "same_environment_mean": _average([float(p["same_environment"]) for p in bucket]),
+                "same_device_mean": _average([float(p["same_device"]) for p in bucket]),
+                "same_entity_mean": _average([float(p["same_entity"]) for p in bucket]),
+                "richness_mean": _average([float(p["evidenceRichness"]) for p in bucket]),
                 "attractor_risk_mean": _average([float(p["attractorRisk"]) for p in bucket]),
             }
         )
@@ -190,31 +219,35 @@ def demo_large_dataset_comparison():
             "cohort": "separation(same-diff)",
             "pairs": "-",
             "legacy_mean": cohort_rows[0]["legacy_mean"] - cohort_rows[1]["legacy_mean"],
-            "breakdown_mean": cohort_rows[0]["breakdown_mean"] - cohort_rows[1]["breakdown_mean"],
-            "device_similarity_mean": "-",
-            "entropy_mean": "-",
+            "same_instance_mean": cohort_rows[0]["same_instance_mean"] - cohort_rows[1]["same_instance_mean"],
+            "same_environment_mean": cohort_rows[0]["same_environment_mean"] - cohort_rows[1]["same_environment_mean"],
+            "same_device_mean": cohort_rows[0]["same_device_mean"] - cohort_rows[1]["same_device_mean"],
+            "same_entity_mean": cohort_rows[0]["same_entity_mean"] - cohort_rows[1]["same_entity_mean"],
+            "richness_mean": cohort_rows[0]["richness_mean"] - cohort_rows[1]["richness_mean"],
             "attractor_risk_mean": "-",
         }
     )
 
-    best_legacy = max(legacy_results, key=lambda item: item.f1)
-    best_breakdown = max(breakdown_results, key=lambda item: item.f1)
+    best_by_profile = {
+        name: max(rows, key=lambda item: item.f1)
+        for name, rows in metrics_by_score.items()
+    }
 
     print(f"Dataset size: {dataset_size} devices x {sessions_per_device} sessions")
     print(f"Compared pairs: {len(pairs)}")
     print()
     print("Cohort Summary (means):")
     print(_format_table(cohort_rows))
-    print("Threshold Comparison (legacy vs scoring_breakdown overall):")
-    print(_format_table(threshold_rows))
-    print(
-        "Best legacy: "
-        f"threshold={best_legacy.threshold}, f1={best_legacy.f1:.3f}, eer={best_legacy.eer:.3f}"
-    )
-    print(
-        "Best breakdown: "
-        f"threshold={best_breakdown.threshold}, f1={best_breakdown.f1:.3f}, eer={best_breakdown.eer:.3f}"
-    )
+    print("Threshold Comparison (F1):")
+    print(_format_table(threshold_f1_rows))
+    print("Threshold Comparison (EER):")
+    print(_format_table(threshold_eer_rows))
+    for name in ["legacy", "same_instance", "same_environment", "same_device", "same_entity"]:
+        best = best_by_profile[name]
+        print(
+            f"Best {name}: "
+            f"threshold={best.threshold}, f1={best.f1:.3f}, eer={best.eer:.3f}"
+        )
 
 
 def demo_basic_comparison():
