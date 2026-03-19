@@ -4,9 +4,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ..libs.confidence import calculate_confidence
-from .data_generator import LabeledFingerprint, generate_dataset
-from .metrics import BenchmarkResult, ScoredPair, calculate_metrics, calculate_true_eer
+from devicer.libs.confidence import calculate_confidence
+from devicer.benchmnarks.data_generator import LabeledFingerprint, generate_dataset
+from devicer.benchmarks.metrics import BenchmarkResult, ScoredPair, calculate_metrics, calculate_true_eer
 
 
 def _format_table(data: List[Dict[str, Any]]) -> str:
