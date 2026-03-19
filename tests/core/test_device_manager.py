@@ -205,6 +205,18 @@ async def test_adaptive_weighting_with_stable_history_keeps_high_confidence():
     assert result.confidence > 70
 
 
+@pytest.mark.asyncio
+async def test_identify_supports_profile_scoring_mode():
+    adapter = create_in_memory_adapter()
+    manager = DeviceManager(adapter, dedup_window_ms=0, confidence_profile="same_instance")
+
+    first = await manager.identify(fp_identical)
+    second = await manager.identify(fp_very_similar)
+
+    assert second.device_id == first.device_id
+    assert 0 <= second.confidence <= 100
+
+
 def test_get_metrics_summary_returns_none_without_get_summary():
     class MinimalMetrics:
         def increment_counter(self, name, value=1):

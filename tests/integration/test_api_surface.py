@@ -4,6 +4,8 @@ def test_public_api_surface_exports():
     assert callable(api.get_hash)
     assert callable(api.compare_hashes)
     assert callable(api.calculate_confidence)
+    assert callable(api.calculate_confidence_profile)
+    assert callable(api.calculate_confidence_breakdown)
     assert callable(api.create_confidence_calculator)
 
     assert callable(api.register_comparator)

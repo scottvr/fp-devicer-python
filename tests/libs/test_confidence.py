@@ -1,4 +1,9 @@
-from devicer.libs.confidence import calculate_confidence, create_confidence_calculator
+from devicer.libs.confidence import (
+    calculate_confidence,
+    calculate_confidence_breakdown,
+    calculate_confidence_profile,
+    create_confidence_calculator,
+)
 from devicer.libs.default_plugins import initialize_default_registry
 from devicer.libs.registry import clear_registry
 from devicer.types import ComparisonOptions
@@ -60,3 +65,34 @@ def test_custom_weight_override_changes_score_when_canvas_zeroed():
     score_zero_canvas = zero_canvas.calculate_confidence(fp_identical, fp_canvas_diff)
     score_default = default_calc.calculate_confidence(fp_identical, fp_canvas_diff)
     assert score_zero_canvas > score_default
+
+
+def test_profile_breakdown_contains_expected_profiles():
+    breakdown = calculate_confidence_breakdown(fp_identical, fp_very_similar)
+    assert breakdown.primary_profile == "same_device"
+    assert breakdown.overall_confidence == breakdown.profile_scores["same_device"]
+    assert {
+        "same_instance",
+        "same_environment",
+        "same_device",
+        "same_entity",
+    }.issubset(set(breakdown.profile_scores.keys()))
+
+
+def test_profile_breakdown_tracks_missingness_without_hard_mismatch():
+    incomplete = dict(fp_identical)
+    incomplete.pop("canvas", None)
+    incomplete.pop("fonts", None)
+    incomplete["screen"] = None
+
+    breakdown = calculate_confidence_breakdown(fp_identical, incomplete)
+    assert breakdown.one_side_missing_fields > 0
+    assert breakdown.evidence_richness < 100
+    assert breakdown.total_fields_compared > 0
+
+
+def test_profile_confidence_function_matches_calculate_confidence_profile_mode():
+    direct = calculate_confidence_profile(fp_identical, fp_similar, profile="same_instance")
+    through_main = calculate_confidence(fp_identical, fp_similar, profile="same_instance")
+    assert 0 <= direct <= 100
+    assert direct == through_main

@@ -30,6 +30,7 @@ class DeviceManager:
         candidate_min_score: float = 30,
         stability_window_size: int = 5,
         dedup_window_ms: int = 5000,
+        confidence_profile: Optional[str] = None,
         logger=default_logger,
         metrics: Metrics = default_metrics,
     ) -> None:
@@ -38,6 +39,7 @@ class DeviceManager:
         self.candidate_min_score = candidate_min_score
         self.stability_window_size = stability_window_size
         self.dedup_window_ms = dedup_window_ms
+        self.confidence_profile = confidence_profile
         self.logger = logger
         self.metrics = metrics
         self._dedup_cache: Dict[str, Tuple[IdentifyResult, float]] = {}
@@ -89,7 +91,7 @@ class DeviceManager:
                 }
                 scorer = create_confidence_calculator(user_options=ComparisonOptions(weights=adapted_weights)).calculate_confidence
 
-            score = scorer(incoming, history[0].fingerprint)
+            score = scorer(incoming, history[0].fingerprint, self.confidence_profile)
             if best_match is None or score > best_match.confidence:
                 best_match = DeviceMatch(
                     device_id=candidate.device_id,

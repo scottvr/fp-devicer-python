@@ -17,7 +17,15 @@ from .libs.adapters import (
 	create_redis_adapter,
 	create_sqlite_adapter,
 )
-from .libs.confidence import DEFAULT_WEIGHTS, calculate_confidence, create_confidence_calculator
+from .libs.confidence import (
+	DEFAULT_WEIGHTS,
+	ConfidenceBreakdown,
+	FamilyScore,
+	calculate_confidence,
+	calculate_confidence_breakdown,
+	calculate_confidence_profile,
+	create_confidence_calculator,
+)
 from .libs.default_observability import DefaultMetrics, default_logger, default_metrics
 from .libs.default_plugins import initialize_default_registry
 from .libs.hashing import canonicalized_stringify, compare_hashes, get_hash, get_hash_difference, get_tlsh_hash
@@ -50,6 +58,7 @@ __all__ = [
 	"Comparator",
 	"ComparisonOptions",
 	"DEFAULT_WEIGHTS",
+	"ConfidenceBreakdown",
 	"DeviceManager",
 	"IdentifyResult",
 	"DeviceMatch",
@@ -66,6 +75,8 @@ __all__ = [
 	"StoredFingerprint",
 	"DefaultMetrics",
 	"calculate_confidence",
+	"calculate_confidence_breakdown",
+	"calculate_confidence_profile",
 	"create_confidence_calculator",
 	"create_in_memory_adapter",
 	"create_postgres_adapter",
@@ -94,6 +105,8 @@ __all__ = [
 	"compareHashes",
 	"createConfidenceCalculator",
 	"calculateConfidence",
+	"calculateConfidenceBreakdown",
+	"calculateConfidenceProfile",
 	"registerComparator",
 	"registerPlugin",
 	"registerWeight",
@@ -102,11 +115,14 @@ __all__ = [
 	"setDefaultWeight",
 	"clearRegistry",
 	"initializeDefaultRegistry",
+	"FamilyScore",
 ]
 
 compareHashes = compare_hashes
 createConfidenceCalculator = create_confidence_calculator
 calculateConfidence = calculate_confidence
+calculateConfidenceBreakdown = calculate_confidence_breakdown
+calculateConfidenceProfile = calculate_confidence_profile
 registerComparator = register_comparator
 registerPlugin = register_plugin
 registerWeight = register_weight
