@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 
 from ..libs.confidence import calculate_confidence
 from .data_generator import LabeledFingerprint, generate_dataset
-from .metrics import BenchmarkResult, ScoredPair, calculate_metrics
+from .metrics import BenchmarkResult, ScoredPair, calculate_metrics, calculate_true_eer
 
 
 def _format_table(data: List[Dict[str, Any]]) -> str:
@@ -102,12 +102,20 @@ def run_accuracy_benchmark(
 
     results = calculate_metrics(scored_pairs)
     best = max(results, key=lambda item: item.f1)
+    true_eer = calculate_true_eer(results)
 
     output = "\n".join(
         [
             f"--- Accuracy Metrics ({datetime.now(UTC).isoformat()}) ---",
             _format_table([asdict(item) for item in results]),
-            f"Best threshold: {best.threshold} | F1: {best.f1:.3f} | EER: {best.eer:.3f}"
+            (
+                f"Best threshold (F1): {best.threshold} | "
+                f"F1: {best.f1:.3f} | FAR/FRR gap: {best.far_frr_gap:.3f}"
+            ),
+            (
+                f"True EER: {true_eer.eer:.3f} at threshold≈{true_eer.threshold:.2f} "
+                f"(FAR={true_eer.far:.3f}, FRR={true_eer.frr:.3f}, method={true_eer.method})"
+            ),
         ]
     )
 

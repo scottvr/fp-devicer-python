@@ -11,7 +11,7 @@ from .data_generator import (
 	generate_webgl_blob,
 	mutate,
 )
-from .metrics import BenchmarkResult, calculate_metrics
+from .metrics import BenchmarkResult, EqualErrorRateResult, calculate_metrics, calculate_true_eer
 
 if TYPE_CHECKING:
 	from .accuracy_bench import run_accuracy_benchmark
@@ -19,9 +19,11 @@ if TYPE_CHECKING:
 
 __all__ = [
 	"BenchmarkResult",
+	"EqualErrorRateResult",
 	"create_attractor_fingerprint",
 	"create_base_fingerprint",
 	"calculate_metrics",
+	"calculate_true_eer",
 	"generate_audio_blob",
 	"generate_canvas_blob",
 	"generate_dataset",

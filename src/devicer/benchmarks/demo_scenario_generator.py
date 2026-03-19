@@ -14,7 +14,7 @@ from scenario_generator import (
     get_scenario_types,
     get_scenario_categories,
 )
-from metrics import ScoredPair, calculate_metrics
+from metrics import ScoredPair, calculate_metrics, calculate_true_eer
 from scoring_breakdown import decompose_confidence, format_breakdown
 
 
@@ -296,7 +296,7 @@ def demo_profiled_scenario_benchmark():
     }
 
     threshold_f1_rows: List[Dict[str, Any]] = []
-    threshold_eer_rows: List[Dict[str, Any]] = []
+    threshold_gap_rows: List[Dict[str, Any]] = []
     for index in range(len(metrics_by_score["overall"])):
         overall_row = metrics_by_score["overall"][index]
         instance_row = metrics_by_score["same_instance"][index]
@@ -314,14 +314,14 @@ def demo_profiled_scenario_benchmark():
                 "entity_f1": entity_row.f1,
             }
         )
-        threshold_eer_rows.append(
+        threshold_gap_rows.append(
             {
                 "threshold": overall_row.threshold,
-                "overall_eer": overall_row.eer,
-                "instance_eer": instance_row.eer,
-                "environment_eer": environment_row.eer,
-                "device_eer": device_row.eer,
-                "entity_eer": entity_row.eer,
+                "overall_gap": overall_row.far_frr_gap,
+                "instance_gap": instance_row.far_frr_gap,
+                "environment_gap": environment_row.far_frr_gap,
+                "device_gap": device_row.far_frr_gap,
+                "entity_gap": entity_row.far_frr_gap,
             }
         )
 
@@ -351,6 +351,10 @@ def demo_profiled_scenario_benchmark():
         name: max(rows, key=lambda item: item.f1)
         for name, rows in metrics_by_score.items()
     }
+    true_eer_by_score = {
+        name: calculate_true_eer(rows)
+        for name, rows in metrics_by_score.items()
+    }
 
     print(f"Generated scenario pairs: {len(scored_pairs)}")
     print()
@@ -358,13 +362,21 @@ def demo_profiled_scenario_benchmark():
     print(_format_table(scenario_rows))
     print("Threshold Comparison (F1):")
     print(_format_table(threshold_f1_rows))
-    print("Threshold Comparison (EER):")
-    print(_format_table(threshold_eer_rows))
+    print("Threshold Comparison (FAR/FRR Gap):")
+    print(_format_table(threshold_gap_rows))
     for name in ["overall", "same_instance", "same_environment", "same_device", "same_entity"]:
         best = best_by_score[name]
         print(
-            f"Best {name}: threshold={best.threshold}, "
-            f"f1={best.f1:.3f}, eer={best.eer:.3f}"
+            f"Best {name} (F1): threshold={best.threshold}, "
+            f"f1={best.f1:.3f}, far_frr_gap={best.far_frr_gap:.3f}"
+        )
+    print()
+    for name in ["overall", "same_instance", "same_environment", "same_device", "same_entity"]:
+        eer = true_eer_by_score[name]
+        print(
+            f"True EER {name}: eer={eer.eer:.3f}, "
+            f"threshold≈{eer.threshold:.2f}, "
+            f"far={eer.far:.3f}, frr={eer.frr:.3f}, method={eer.method}"
         )
 
 

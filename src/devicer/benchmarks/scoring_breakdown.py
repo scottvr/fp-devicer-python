@@ -693,7 +693,7 @@ def format_breakdown(breakdown: ScoreBreakdown) -> str:
 from typing import Any, Dict, List
 
 from data_generator import LabeledFingerprint, generate_dataset, mutate, create_base_fingerprint
-from metrics import ScoredPair, calculate_metrics
+from metrics import ScoredPair, calculate_metrics, calculate_true_eer
 
 try:
     from devicer.libs.confidence import calculate_confidence
@@ -838,7 +838,7 @@ def demo_large_dataset_comparison():
     }
 
     threshold_f1_rows: List[Dict[str, Any]] = []
-    threshold_eer_rows: List[Dict[str, Any]] = []
+    threshold_gap_rows: List[Dict[str, Any]] = []
     for index in range(len(metrics_by_score["legacy"])):
         legacy_row = metrics_by_score["legacy"][index]
         instance_row = metrics_by_score["same_instance"][index]
@@ -856,14 +856,14 @@ def demo_large_dataset_comparison():
                 "entity_f1": entity_row.f1,
             }
         )
-        threshold_eer_rows.append(
+        threshold_gap_rows.append(
             {
                 "threshold": legacy_row.threshold,
-                "legacy_eer": legacy_row.eer,
-                "instance_eer": instance_row.eer,
-                "environment_eer": env_row.eer,
-                "device_eer": device_row.eer,
-                "entity_eer": entity_row.eer,
+                "legacy_gap": legacy_row.far_frr_gap,
+                "instance_gap": instance_row.far_frr_gap,
+                "environment_gap": env_row.far_frr_gap,
+                "device_gap": device_row.far_frr_gap,
+                "entity_gap": entity_row.far_frr_gap,
             }
         )
 
@@ -911,6 +911,10 @@ def demo_large_dataset_comparison():
         name: max(rows, key=lambda item: item.f1)
         for name, rows in metrics_by_score.items()
     }
+    true_eer_by_profile = {
+        name: calculate_true_eer(rows)
+        for name, rows in metrics_by_score.items()
+    }
 
     print(f"Dataset size: {dataset_size} devices x {sessions_per_device} sessions")
     print(f"Compared pairs: {len(pairs)}")
@@ -919,13 +923,21 @@ def demo_large_dataset_comparison():
     print(_format_table(cohort_rows))
     print("Threshold Comparison (F1):")
     print(_format_table(threshold_f1_rows))
-    print("Threshold Comparison (EER):")
-    print(_format_table(threshold_eer_rows))
+    print("Threshold Comparison (FAR/FRR Gap):")
+    print(_format_table(threshold_gap_rows))
     for name in ["legacy", "same_instance", "same_environment", "same_device", "same_entity"]:
         best = best_by_profile[name]
         print(
             f"Best {name}: "
-            f"threshold={best.threshold}, f1={best.f1:.3f}, eer={best.eer:.3f}"
+            f"threshold={best.threshold}, f1={best.f1:.3f}, far_frr_gap={best.far_frr_gap:.3f}"
+        )
+    print()
+    for name in ["legacy", "same_instance", "same_environment", "same_device", "same_entity"]:
+        eer = true_eer_by_profile[name]
+        print(
+            f"True EER {name}: eer={eer.eer:.3f}, "
+            f"threshold≈{eer.threshold:.2f}, far={eer.far:.3f}, "
+            f"frr={eer.frr:.3f}, method={eer.method}"
         )
 
 
