@@ -164,7 +164,7 @@ def demo_trust_semantics_truth_table():
             "should_commonness": "med/high",
             "should_distinctiveness": "low/med",
             "should_insufficiency": "high",
-            "should_trust_adjustment": "med",
+            "should_trust_adjustment": "med/high",
         },
         {
             "case": "Sparse fp (different device)",
@@ -216,8 +216,12 @@ def demo_trust_semantics_truth_table():
                 "distinctiveness": breakdown.distinctiveness_score,
                 "collision_risk": breakdown.collision_risk,
                 "insufficiency_risk": breakdown.insufficiency_risk,
+                "trust_shift": breakdown.trust_shift,
                 "trust_adjustment": breakdown.trust_adjustment,
                 "final_profile_score": final_same_device,
+                "confidence_label": breakdown.confidence_label,
+                "policy_action": breakdown.policy_action,
+                "uncertainty_zone": breakdown.uncertainty_zone,
                 "obs_commonness_band": commonness_band,
                 "obs_distinctiveness_band": distinctiveness_band,
                 "obs_insufficiency_band": insufficiency_band,
@@ -266,7 +270,11 @@ def demo_single_scenarios():
         print(f"Raw Similarity: {breakdown.raw_similarity_score:.1f}/100")
         print(f"Collision Risk: {breakdown.collision_risk:.1f}/100")
         print(f"Insufficiency Risk: {breakdown.insufficiency_risk:.1f}/100")
-        print(f"Trust Adjustment: -{breakdown.trust_adjustment:.1f}")
+        print(f"Trust Shift: {breakdown.trust_shift:+.1f}")
+        print(f"Trust Adjustment: {breakdown.trust_adjustment:.1f}")
+        print(f"Confidence Label: {breakdown.confidence_label}")
+        print(f"Policy Action: {breakdown.policy_action}")
+        print(f"Uncertainty Zone: {breakdown.uncertainty_zone}")
         print(f"Distinctiveness: {breakdown.distinctiveness_score:.1f}/100")
         print(f"Commonness: {breakdown.commonness_score:.1f}/100")
         print(f"Same Instance: {profile_scores.get('same_instance', breakdown.overall_confidence):.1f}/100")
@@ -472,9 +480,13 @@ def demo_profiled_scenario_benchmark():
                 "isAttractor": pair.metadata.difficulty == "extreme",
                 "raw_overall": breakdown.raw_similarity_score,
                 "overall": breakdown.overall_confidence,
+                "trust_shift": breakdown.trust_shift,
                 "trust_adjustment": breakdown.trust_adjustment,
                 "collision_risk": breakdown.collision_risk,
                 "insufficiency_risk": breakdown.insufficiency_risk,
+                "uncertainty_zone": breakdown.uncertainty_zone,
+                "confidence_label": breakdown.confidence_label,
+                "policy_action": breakdown.policy_action,
                 "distinctiveness": breakdown.distinctiveness_score,
                 "commonness": breakdown.commonness_score,
                 "same_instance": profile_scores.get("same_instance", breakdown.overall_confidence),
@@ -541,9 +553,16 @@ def demo_profiled_scenario_benchmark():
                 "expected_match_pct": _average([100.0 if b["sameDevice"] else 0.0 for b in bucket]),
                 "raw_overall_mean": _average([float(b["raw_overall"]) for b in bucket]),
                 "overall_mean": _average([float(b["overall"]) for b in bucket]),
+                "trust_shift_mean": _average([float(b["trust_shift"]) for b in bucket]),
                 "trust_adjustment_mean": _average([float(b["trust_adjustment"]) for b in bucket]),
                 "collision_risk_mean": _average([float(b["collision_risk"]) for b in bucket]),
                 "insufficiency_risk_mean": _average([float(b["insufficiency_risk"]) for b in bucket]),
+                "uncertainty_zone_pct": _average(
+                    [100.0 if bool(b["uncertainty_zone"]) else 0.0 for b in bucket]
+                ),
+                "low_confidence_pct": _average(
+                    [100.0 if str(b["confidence_label"]) != "ordinary" else 0.0 for b in bucket]
+                ),
                 "distinctiveness_mean": _average([float(b["distinctiveness"]) for b in bucket]),
                 "commonness_mean": _average([float(b["commonness"]) for b in bucket]),
                 "instance_mean": _average([float(b["same_instance"]) for b in bucket]),

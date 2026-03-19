@@ -35,7 +35,13 @@ class ScoreBreakdown:
     distinctiveness_score: float  # 0-100: Higher means more unique fingerprint evidence
     collision_risk: float  # 0-100: Estimated collision-prone risk used for trust adjustment
     insufficiency_risk: float  # 0-100: Evidence insufficiency/sparsity risk
-    trust_adjustment: float  # points subtracted from raw similarity
+    trust_adjustment: float  # absolute trust-layer shift magnitude in points
+    trust_shift: float  # signed trust-layer shift (adjusted - raw)
+    uncertainty_zone: bool  # True when score should not be treated as ordinary confidence
+    confidence_label: str  # ordinary | low_confidence | uncertain_zone | abstain
+    policy_action: str  # normal | low_confidence | challenge | review | abstain
+    decision_threshold: float  # threshold used for uncertainty policy checks
+    threshold_distance: float  # abs(final - decision_threshold)
     evidence_richness: float  # 0-100: How much data is present vs missing
     field_agreement: float  # 0-100: Percentage of comparable fields that match
     structural_stability: float  # 0-100: Agreement on stable fields (screen, hardware)
@@ -145,6 +151,9 @@ PROFILE_WEIGHTS = {
         "richness": 0.20,
     },
 }
+
+DEFAULT_DECISION_THRESHOLD = 65.0
+DEFAULT_UNCERTAINTY_BAND = 8.0
 
 # Stable fields that shouldn't change much
 STRUCTURAL_FIELDS = {
@@ -380,6 +389,7 @@ def _compute_commonness_and_flags(
 
 def _compute_insufficiency_risk_and_flags(
     evidence_richness: float,
+    comparable_field_count: int,
     family_coverages: Dict[str, float],
 ) -> Tuple[float, List[str]]:
     """
@@ -390,47 +400,73 @@ def _compute_insufficiency_risk_and_flags(
     software_cov = _clamp_01(family_coverages.get(FAMILY_SOFTWARE, 0.0))
     locale_cov = _clamp_01(family_coverages.get(FAMILY_LOCALE, 0.0))
 
-    richness_shortfall = _clamp_01((72.0 - evidence_richness) / 42.0)
-    structural_absence = _clamp_01((0.65 - structural_cov) / 0.65)
-    rendering_absence = _clamp_01((0.55 - rendering_cov) / 0.55)
-    software_absence = _clamp_01((0.55 - software_cov) / 0.55)
+    richness_shortfall = _clamp_01((74.0 - evidence_richness) / 40.0)
+    comparable_shortfall = _clamp_01((14.0 - float(comparable_field_count)) / 9.0)
+    structural_absence = _clamp_01((0.55 - structural_cov) / 0.55)
+    rendering_absence = _clamp_01((0.40 - rendering_cov) / 0.40)
+    software_absence = _clamp_01((0.50 - software_cov) / 0.50)
     key_family_absence = (
-        0.50 * structural_absence
-        + 0.30 * rendering_absence
-        + 0.20 * software_absence
+        0.45 * structural_absence
+        + 0.40 * rendering_absence
+        + 0.15 * software_absence
     )
     weak_context = _clamp_01((0.45 - locale_cov) / 0.45)
 
     insufficiency_risk = (
-        0.60 * richness_shortfall
-        + 0.30 * key_family_absence
+        0.45 * richness_shortfall
+        + 0.25 * comparable_shortfall
+        + 0.20 * key_family_absence
         + 0.10 * weak_context
     )
 
     flags: List[str] = []
     if evidence_richness < 65:
         flags.append("insufficient_evidence")
+    if comparable_field_count < 14:
+        flags.append("low_comparable_fields")
     if structural_cov < 0.55 or rendering_cov < 0.45 or software_cov < 0.45:
         flags.append("missing_key_families")
-    if rendering_cov < 0.15:
-        flags.append("missing_rendering_family")
+    if rendering_cov < 0.20:
+        flags.append("entropy_family_absent")
+    if structural_cov < 0.30:
+        flags.append("structural_family_absent")
     if software_cov < 0.35:
         flags.append("thin_software_family")
-    if evidence_richness < 60 and (rendering_cov < 0.20 or software_cov < 0.35):
+    if (
+        evidence_richness < 62
+        and comparable_field_count < 13
+        and (rendering_cov < 0.25 or software_cov < 0.40)
+    ):
         flags.append("sparse_observation")
-    if evidence_richness < 50 and rendering_cov < 0.15 and software_cov < 0.35:
+    if (
+        evidence_richness < 58
+        and comparable_field_count < 12
+        and (rendering_cov < 0.25 or structural_cov < 0.35)
+    ):
+        flags.append("too_partial_for_identity")
+    if (
+        evidence_richness < 45
+        and comparable_field_count < 9
+        and (rendering_cov < 0.18 or structural_cov < 0.25)
+    ):
         flags.append("too_incomplete_for_identity")
 
+    if "low_comparable_fields" in flags:
+        insufficiency_risk += 0.12
     if "missing_key_families" in flags:
         insufficiency_risk += 0.10
-    if "missing_rendering_family" in flags:
-        insufficiency_risk += 0.10
+    if "entropy_family_absent" in flags:
+        insufficiency_risk += 0.15
+    if "structural_family_absent" in flags:
+        insufficiency_risk += 0.12
     if "thin_software_family" in flags:
-        insufficiency_risk += 0.05
+        insufficiency_risk += 0.08
     if "sparse_observation" in flags:
         insufficiency_risk += 0.12
+    if "too_partial_for_identity" in flags:
+        insufficiency_risk += 0.18
     if "too_incomplete_for_identity" in flags:
-        insufficiency_risk += 0.15
+        insufficiency_risk += 0.20
 
     return _clamp_01(insufficiency_risk), flags
 
@@ -488,19 +524,42 @@ def _apply_trust_adjustment_to_profiles(
     collision = _clamp_01(collision_risk)
     insufficiency = _clamp_01(insufficiency_risk)
 
-    # Broader profiles should be more conservative in collision-prone classes.
+    # Collision remains penalty-like.
     profile_collision_penalty_strength = {
-        "same_instance": 0.28,
-        "same_environment": 0.34,
-        "same_device": 0.42,
-        "same_entity": 0.55,
+        "same_instance": 0.30,
+        "same_environment": 0.36,
+        "same_device": 0.44,
+        "same_entity": 0.58,
     }
-    profile_insufficiency_penalty_strength = {
-        "same_instance": 0.36,
-        "same_environment": 0.46,
-        "same_device": 0.58,
-        "same_entity": 0.72,
+
+    # Insufficiency is moderation-like: pull confidence toward a profile midpoint.
+    profile_uncertainty_pull_strength = {
+        "same_instance": 0.60,
+        "same_environment": 0.72,
+        "same_device": 0.84,
+        "same_entity": 0.95,
     }
+    profile_uncertainty_midpoint = {
+        "same_instance": 58.0,
+        "same_environment": 56.0,
+        "same_device": 54.0,
+        "same_entity": 52.0,
+    }
+
+    # Strong insufficiency should constrain decisiveness around the midpoint band.
+    profile_uncertainty_min_half_band = {
+        "same_instance": 12.0,
+        "same_environment": 10.0,
+        "same_device": 9.0,
+        "same_entity": 8.0,
+    }
+    profile_uncertainty_max_half_band = {
+        "same_instance": 46.0,
+        "same_environment": 42.0,
+        "same_device": 38.0,
+        "same_entity": 34.0,
+    }
+
     profile_collision_threshold = {
         "same_instance": 0.90,
         "same_environment": 0.82,
@@ -519,41 +578,12 @@ def _apply_trust_adjustment_to_profiles(
         "same_device": 66.0,
         "same_entity": 58.0,
     }
-    profile_insufficiency_threshold = {
-        "same_instance": 0.70,
-        "same_environment": 0.62,
-        "same_device": 0.55,
-        "same_entity": 0.50,
-    }
-    profile_insufficiency_cap = {
-        "same_instance": 82.0,
-        "same_environment": 74.0,
-        "same_device": 68.0,
-        "same_entity": 60.0,
-    }
-    profile_hard_insufficiency_cap = {
-        "same_instance": 74.0,
-        "same_environment": 68.0,
-        "same_device": 62.0,
-        "same_entity": 56.0,
-    }
-    profile_dual_risk_cap = {
-        "same_instance": 72.0,
-        "same_environment": 66.0,
-        "same_device": 60.0,
-        "same_entity": 54.0,
-    }
 
     for profile_name, raw_score in raw_profile_scores.items():
         collision_strength = profile_collision_penalty_strength.get(profile_name, 0.42)
-        insufficiency_strength = profile_insufficiency_penalty_strength.get(profile_name, 0.58)
-
-        penalty_fraction = (
-            collision_strength * collision
-            + insufficiency_strength * insufficiency
-        )
-        penalty_fraction = _clamp_01(min(0.92, penalty_fraction))
-        adjusted = raw_score * (1.0 - penalty_fraction)
+        collision_effect = collision ** 1.10
+        collision_penalty_fraction = _clamp_01(min(0.88, collision_strength * collision_effect))
+        adjusted = raw_score * (1.0 - collision_penalty_fraction)
 
         collision_threshold = profile_collision_threshold.get(profile_name, 0.75)
         if collision >= collision_threshold:
@@ -561,18 +591,62 @@ def _apply_trust_adjustment_to_profiles(
         if collision >= 0.90:
             adjusted = min(adjusted, profile_hard_collision_cap.get(profile_name, 66.0))
 
-        insufficiency_threshold = profile_insufficiency_threshold.get(profile_name, 0.55)
-        if insufficiency >= insufficiency_threshold:
-            adjusted = min(adjusted, profile_insufficiency_cap.get(profile_name, 68.0))
-        if insufficiency >= 0.85:
-            adjusted = min(adjusted, profile_hard_insufficiency_cap.get(profile_name, 62.0))
+        # Moderation path: pull score toward midpoint as insufficiency rises.
+        insufficiency_effect = insufficiency ** 1.15
+        midpoint = profile_uncertainty_midpoint.get(profile_name, 54.0)
+        pull_strength = profile_uncertainty_pull_strength.get(profile_name, 0.84) * insufficiency_effect
+        pull_strength = _clamp_01(pull_strength)
+        adjusted = adjusted + (midpoint - adjusted) * pull_strength
 
-        if collision >= 0.70 and insufficiency >= 0.60:
-            adjusted = min(adjusted, profile_dual_risk_cap.get(profile_name, 60.0))
+        # As insufficiency increases, compress outputs into a narrower uncertainty band.
+        min_half_band = profile_uncertainty_min_half_band.get(profile_name, 9.0)
+        max_half_band = profile_uncertainty_max_half_band.get(profile_name, 38.0)
+        half_band = min_half_band + (max_half_band - min_half_band) * (1.0 - insufficiency_effect)
+        lower = midpoint - half_band
+        upper = midpoint + half_band
+        adjusted = max(lower, min(upper, adjusted))
 
         adjusted_scores[profile_name] = _clamp_0_100(adjusted)
 
     return adjusted_scores
+
+
+def _evaluate_uncertainty_policy(
+    final_score: float,
+    insufficiency_risk_score: float,
+    decision_threshold: float,
+    uncertainty_band: float,
+) -> Tuple[bool, str, str, float, List[str]]:
+    """
+    Determine whether the score should be treated as ordinary, low-confidence,
+    uncertain-zone, or abstain-worthy.
+    """
+    insuff = _clamp_0_100(insufficiency_risk_score)
+    distance = abs(final_score - decision_threshold)
+    near = distance <= uncertainty_band
+    near_wide = distance <= (uncertainty_band * 1.5)
+
+    flags: List[str] = []
+    if insuff >= 60.0:
+        flags.append("low_confidence_by_insufficiency")
+    if near and insuff >= 60.0:
+        flags.append("near_threshold_under_insufficiency")
+
+    if insuff >= 92.0:
+        flags.append("abstain_recommended")
+        return True, "abstain", "abstain", distance, flags
+    if insuff >= 75.0 and near_wide:
+        flags.append("review_recommended")
+        return True, "uncertain_zone", "review", distance, flags
+    if insuff >= 60.0 and near:
+        flags.append("challenge_recommended")
+        return True, "uncertain_zone", "challenge", distance, flags
+    if insuff >= 75.0:
+        flags.append("review_recommended")
+        return False, "low_confidence", "review", distance, flags
+    if insuff >= 60.0:
+        return False, "low_confidence", "low_confidence", distance, flags
+    return False, "ordinary", "normal", distance, flags
 
 
 def _flatten_fingerprint(fp: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
@@ -658,6 +732,8 @@ def decompose_confidence(
     attractor_pool: Optional[List[Dict[str, Any]]] = None,
     top_n: int = 5,
     primary_profile: str = "same_device",
+    decision_threshold: float = DEFAULT_DECISION_THRESHOLD,
+    uncertainty_band: float = DEFAULT_UNCERTAINTY_BAND,
 ) -> ScoreBreakdown:
     """
     Decompose fingerprint comparison into multi-dimensional scores
@@ -829,6 +905,7 @@ def decompose_confidence(
     )
     insufficiency_risk, insufficiency_flags = _compute_insufficiency_risk_and_flags(
         evidence_richness=evidence_richness,
+        comparable_field_count=comparable_fields,
         family_coverages=family_coverages,
     )
     policy_flags: List[str] = []
@@ -852,7 +929,19 @@ def decompose_confidence(
         primary_profile = "same_device"
     overall = profile_scores[primary_profile]
     raw_primary = raw_profile_scores.get(primary_profile, overall)
-    trust_adjustment = max(0.0, raw_primary - overall)
+    trust_shift = overall - raw_primary
+    trust_adjustment = abs(trust_shift)
+    uncertainty_zone, confidence_label, policy_action, threshold_distance, uncertainty_flags = (
+        _evaluate_uncertainty_policy(
+            final_score=overall,
+            insufficiency_risk_score=insufficiency_risk * 100.0,
+            decision_threshold=decision_threshold,
+            uncertainty_band=uncertainty_band,
+        )
+    )
+    for flag in uncertainty_flags:
+        if flag not in policy_flags:
+            policy_flags.append(flag)
 
     # Sort matches by contribution (highest first)
     matches.sort(key=lambda m: m.contribution, reverse=True)
@@ -870,6 +959,12 @@ def decompose_confidence(
         collision_risk=collision_risk * 100.0,
         insufficiency_risk=insufficiency_risk * 100.0,
         trust_adjustment=trust_adjustment,
+        trust_shift=trust_shift,
+        uncertainty_zone=uncertainty_zone,
+        confidence_label=confidence_label,
+        policy_action=policy_action,
+        decision_threshold=decision_threshold,
+        threshold_distance=threshold_distance,
         evidence_richness=evidence_richness,
         field_agreement=field_agreement,
         structural_stability=structural_stability,
@@ -914,7 +1009,13 @@ def format_breakdown(breakdown: ScoreBreakdown) -> str:
         f"  Collision Risk:        {breakdown.collision_risk:.1f}/100",
         f"  Insufficiency Risk:    {breakdown.insufficiency_risk:.1f}/100",
         f"  Trust-Adjusted:        {breakdown.overall_confidence:.1f}/100",
-        f"  Trust Adjustment:      -{breakdown.trust_adjustment:.1f}",
+        f"  Trust Shift:           {breakdown.trust_shift:+.1f}",
+        f"  Trust Adjustment:      {breakdown.trust_adjustment:.1f}",
+        f"  Confidence Label:      {breakdown.confidence_label}",
+        f"  Policy Action:         {breakdown.policy_action}",
+        f"  Uncertainty Zone:      {breakdown.uncertainty_zone}",
+        f"  Decision Threshold:    {breakdown.decision_threshold:.1f}",
+        f"  Threshold Distance:    {breakdown.threshold_distance:.1f}",
         "",
         "Dimensions:",
         f"  Device Similarity:     {breakdown.device_similarity:.1f}/100",
@@ -1045,8 +1146,12 @@ def _score_pair(
         "raw_breakdownScore": float(raw_profile_scores.get("same_device", breakdown.raw_similarity_score)),
         "raw_overall": float(breakdown.raw_similarity_score),
         "trust_adjustment": float(breakdown.trust_adjustment),
+        "trust_shift": float(breakdown.trust_shift),
         "collision_risk": float(breakdown.collision_risk),
         "insufficiency_risk": float(breakdown.insufficiency_risk),
+        "uncertainty_zone": bool(breakdown.uncertainty_zone),
+        "confidence_label": str(breakdown.confidence_label),
+        "policy_action": str(breakdown.policy_action),
         "commonness": float(breakdown.commonness_score),
         "distinctiveness": float(breakdown.distinctiveness_score),
         "same_instance": float(profile_scores.get("same_instance", breakdown.overall_confidence)),
@@ -1204,6 +1309,13 @@ def demo_large_dataset_comparison():
                 "collision_risk_mean": _average([float(p["collision_risk"]) for p in bucket]),
                 "insufficiency_risk_mean": _average([float(p["insufficiency_risk"]) for p in bucket]),
                 "trust_adjustment_mean": _average([float(p["trust_adjustment"]) for p in bucket]),
+                "trust_shift_mean": _average([float(p["trust_shift"]) for p in bucket]),
+                "uncertainty_zone_pct": _average(
+                    [100.0 if bool(p["uncertainty_zone"]) else 0.0 for p in bucket]
+                ),
+                "low_confidence_pct": _average(
+                    [100.0 if str(p["confidence_label"]) != "ordinary" else 0.0 for p in bucket]
+                ),
                 "richness_mean": _average([float(p["evidenceRichness"]) for p in bucket]),
                 "attractor_risk_mean": _average([float(p["attractorRisk"]) for p in bucket]),
             }
@@ -1224,6 +1336,9 @@ def demo_large_dataset_comparison():
             "collision_risk_mean": cohort_rows[0]["collision_risk_mean"] - cohort_rows[1]["collision_risk_mean"],
             "insufficiency_risk_mean": cohort_rows[0]["insufficiency_risk_mean"] - cohort_rows[1]["insufficiency_risk_mean"],
             "trust_adjustment_mean": cohort_rows[0]["trust_adjustment_mean"] - cohort_rows[1]["trust_adjustment_mean"],
+            "trust_shift_mean": cohort_rows[0]["trust_shift_mean"] - cohort_rows[1]["trust_shift_mean"],
+            "uncertainty_zone_pct": cohort_rows[0]["uncertainty_zone_pct"] - cohort_rows[1]["uncertainty_zone_pct"],
+            "low_confidence_pct": cohort_rows[0]["low_confidence_pct"] - cohort_rows[1]["low_confidence_pct"],
             "richness_mean": cohort_rows[0]["richness_mean"] - cohort_rows[1]["richness_mean"],
             "attractor_risk_mean": "-",
         }
