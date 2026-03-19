@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 from .data_generator import (
 	create_attractor_fingerprint,
 	create_base_fingerprint,
@@ -8,8 +12,10 @@ from .data_generator import (
 	mutate,
 )
 from .metrics import BenchmarkResult, calculate_metrics
-from .accuracy_bench import run_accuracy_benchmark
-from .performance_bench import run_performance_benchmark
+
+if TYPE_CHECKING:
+	from .accuracy_bench import run_accuracy_benchmark
+	from .performance_bench import run_performance_benchmark
 
 __all__ = [
 	"BenchmarkResult",
@@ -24,3 +30,15 @@ __all__ = [
 	"run_accuracy_benchmark",
 	"run_performance_benchmark",
 ]
+
+
+def __getattr__(name: str) -> Any:
+	if name == "run_accuracy_benchmark":
+		from .accuracy_bench import run_accuracy_benchmark
+
+		return run_accuracy_benchmark
+	if name == "run_performance_benchmark":
+		from .performance_bench import run_performance_benchmark
+
+		return run_performance_benchmark
+	raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
