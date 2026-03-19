@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Sequence, TypedDict
 
+EER_DELTA_EPS = 1e-12
+
 
 class ScoredPair(TypedDict):
     score: float
@@ -107,7 +109,7 @@ def calculate_true_eer(results: Sequence[BenchmarkResult]) -> EqualErrorRateResu
     previous = ordered[0]
     previous_delta = previous.far - previous.frr
 
-    if previous_delta == 0:
+    if abs(previous_delta) < EER_DELTA_EPS:
         return EqualErrorRateResult(
             threshold=float(previous.threshold),
             eer=previous.far,
@@ -119,7 +121,7 @@ def calculate_true_eer(results: Sequence[BenchmarkResult]) -> EqualErrorRateResu
     for current in ordered[1:]:
         current_delta = current.far - current.frr
 
-        if current_delta == 0:
+        if abs(current_delta) < EER_DELTA_EPS:
             return EqualErrorRateResult(
                 threshold=float(current.threshold),
                 eer=current.far,
