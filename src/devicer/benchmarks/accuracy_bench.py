@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
 from ..libs.confidence import calculate_confidence
 from .data_generator import LabeledFingerprint, generate_dataset
-from .metrics import BenchmarkResult, ScoredPair, calculate_metrics
+from .metrics import BenchmarkResult, ScoredPair, calculate_metrics, calculate_true_eer
 
 
 def _format_table(data: List[Dict[str, Any]]) -> str:
@@ -102,12 +101,35 @@ def run_accuracy_benchmark(
 
     results = calculate_metrics(scored_pairs)
     best = max(results, key=lambda item: item.f1)
+    true_eer = calculate_true_eer(results)
+    per_threshold_rows = [
+        {
+            "threshold": row.threshold,
+            "precision": row.precision,
+            "recall": row.recall,
+            "f1": row.f1,
+            "far": row.far,
+            "frr": row.frr,
+            "gap_far_frr": row.far_frr_gap,
+        }
+        for row in results
+    ]
+    summary_rows = [
+        {
+            "best_f1_threshold": best.threshold,
+            "best_f1": best.f1,
+            "eer_threshold": true_eer.threshold,
+            "eer": true_eer.eer,
+        }
+    ]
 
     output = "\n".join(
         [
             f"--- Accuracy Metrics ({datetime.now(UTC).isoformat()}) ---",
-            _format_table([asdict(item) for item in results]),
-            f"Best threshold: {best.threshold} | F1: {best.f1:.3f} | EER: {best.eer:.3f}"
+            "Per-threshold table:",
+            _format_table(per_threshold_rows),
+            "Benchmark summary:",
+            _format_table(summary_rows),
         ]
     )
 
