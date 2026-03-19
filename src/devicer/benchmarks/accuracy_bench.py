@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -103,19 +102,34 @@ def run_accuracy_benchmark(
     results = calculate_metrics(scored_pairs)
     best = max(results, key=lambda item: item.f1)
     true_eer = calculate_true_eer(results)
+    per_threshold_rows = [
+        {
+            "threshold": row.threshold,
+            "precision": row.precision,
+            "recall": row.recall,
+            "f1": row.f1,
+            "far": row.far,
+            "frr": row.frr,
+            "gap_far_frr": row.far_frr_gap,
+        }
+        for row in results
+    ]
+    summary_rows = [
+        {
+            "best_f1_threshold": best.threshold,
+            "best_f1": best.f1,
+            "eer_threshold": true_eer.threshold,
+            "eer": true_eer.eer,
+        }
+    ]
 
     output = "\n".join(
         [
             f"--- Accuracy Metrics ({datetime.now(UTC).isoformat()}) ---",
-            _format_table([asdict(item) for item in results]),
-            (
-                f"Best threshold (F1): {best.threshold} | "
-                f"F1: {best.f1:.3f} | FAR/FRR gap: {best.far_frr_gap:.3f}"
-            ),
-            (
-                f"True EER: {true_eer.eer:.3f} at threshold≈{true_eer.threshold:.2f} "
-                f"(FAR={true_eer.far:.3f}, FRR={true_eer.frr:.3f}, method={true_eer.method})"
-            ),
+            "Per-threshold table:",
+            _format_table(per_threshold_rows),
+            "Benchmark summary:",
+            _format_table(summary_rows),
         ]
     )
 

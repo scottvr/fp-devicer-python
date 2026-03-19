@@ -915,30 +915,45 @@ def demo_large_dataset_comparison():
         name: calculate_true_eer(rows)
         for name, rows in metrics_by_score.items()
     }
+    per_threshold_rows = [
+        {
+            "threshold": row.threshold,
+            "precision": row.precision,
+            "recall": row.recall,
+            "f1": row.f1,
+            "far": row.far,
+            "frr": row.frr,
+            "gap_far_frr": row.far_frr_gap,
+        }
+        for row in metrics_by_score["legacy"]
+    ]
+    summary_rows = []
+    for name in ["legacy", "same_instance", "same_environment", "same_device", "same_entity"]:
+        best = best_by_profile[name]
+        eer = true_eer_by_profile[name]
+        summary_rows.append(
+            {
+                "profile": name,
+                "best_f1_threshold": best.threshold,
+                "best_f1": best.f1,
+                "eer_threshold": eer.threshold,
+                "eer": eer.eer,
+            }
+        )
 
     print(f"Dataset size: {dataset_size} devices x {sessions_per_device} sessions")
     print(f"Compared pairs: {len(pairs)}")
     print()
     print("Cohort Summary (means):")
     print(_format_table(cohort_rows))
+    print("Per-threshold table (legacy):")
+    print(_format_table(per_threshold_rows))
+    print("Benchmark summary:")
+    print(_format_table(summary_rows))
     print("Threshold Comparison (F1):")
     print(_format_table(threshold_f1_rows))
     print("Threshold Comparison (FAR/FRR Gap):")
     print(_format_table(threshold_gap_rows))
-    for name in ["legacy", "same_instance", "same_environment", "same_device", "same_entity"]:
-        best = best_by_profile[name]
-        print(
-            f"Best {name}: "
-            f"threshold={best.threshold}, f1={best.f1:.3f}, far_frr_gap={best.far_frr_gap:.3f}"
-        )
-    print()
-    for name in ["legacy", "same_instance", "same_environment", "same_device", "same_entity"]:
-        eer = true_eer_by_profile[name]
-        print(
-            f"True EER {name}: eer={eer.eer:.3f}, "
-            f"threshold≈{eer.threshold:.2f}, far={eer.far:.3f}, "
-            f"frr={eer.frr:.3f}, method={eer.method}"
-        )
 
 
 def demo_basic_comparison():

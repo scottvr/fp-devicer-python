@@ -355,29 +355,44 @@ def demo_profiled_scenario_benchmark():
         name: calculate_true_eer(rows)
         for name, rows in metrics_by_score.items()
     }
+    per_threshold_rows = [
+        {
+            "threshold": row.threshold,
+            "precision": row.precision,
+            "recall": row.recall,
+            "f1": row.f1,
+            "far": row.far,
+            "frr": row.frr,
+            "gap_far_frr": row.far_frr_gap,
+        }
+        for row in metrics_by_score["overall"]
+    ]
+    summary_rows = []
+    for name in ["overall", "same_instance", "same_environment", "same_device", "same_entity"]:
+        best = best_by_score[name]
+        eer = true_eer_by_score[name]
+        summary_rows.append(
+            {
+                "profile": name,
+                "best_f1_threshold": best.threshold,
+                "best_f1": best.f1,
+                "eer_threshold": eer.threshold,
+                "eer": eer.eer,
+            }
+        )
 
     print(f"Generated scenario pairs: {len(scored_pairs)}")
     print()
     print("Scenario Type Means:")
     print(_format_table(scenario_rows))
+    print("Per-threshold table (overall):")
+    print(_format_table(per_threshold_rows))
+    print("Benchmark summary:")
+    print(_format_table(summary_rows))
     print("Threshold Comparison (F1):")
     print(_format_table(threshold_f1_rows))
     print("Threshold Comparison (FAR/FRR Gap):")
     print(_format_table(threshold_gap_rows))
-    for name in ["overall", "same_instance", "same_environment", "same_device", "same_entity"]:
-        best = best_by_score[name]
-        print(
-            f"Best {name} (F1): threshold={best.threshold}, "
-            f"f1={best.f1:.3f}, far_frr_gap={best.far_frr_gap:.3f}"
-        )
-    print()
-    for name in ["overall", "same_instance", "same_environment", "same_device", "same_entity"]:
-        eer = true_eer_by_score[name]
-        print(
-            f"True EER {name}: eer={eer.eer:.3f}, "
-            f"threshold≈{eer.threshold:.2f}, "
-            f"far={eer.far:.3f}, frr={eer.frr:.3f}, method={eer.method}"
-        )
 
 
 def main():
