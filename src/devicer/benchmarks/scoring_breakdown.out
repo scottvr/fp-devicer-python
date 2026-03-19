@@ -1,0 +1,411 @@
+======================================================================
+DEMO 1: Same Device, Minor Drift
+======================================================================
+=== Score Breakdown ===
+Overall Confidence: 85.1/100
+
+Identity Layer:
+  Raw Similarity:        92.0/100
+  Commonness Score:      43.0/100
+  Distinctiveness Score: 57.0/100
+  Collision Risk:        20.0/100
+  Insufficiency Risk:    0.0/100
+  Trust-Adjusted:        85.1/100
+  Trust Shift:           -6.9
+  Trust Adjustment:      6.9
+  Confidence Label:      ordinary
+  Policy Action:         normal
+  Uncertainty Zone:      False
+  Decision Threshold:    65.0
+  Threshold Distance:    20.1
+
+Dimensions:
+  Device Similarity:     88.0/100
+  Evidence Richness:     100.0/100
+  Field Agreement:       96.8% (31 fields)
+  Structural Stability:  100.0/100
+  Entropy Contribution:  60.0/100
+  Attractor Risk:        30.0/100
+  Missing (one-side):    0
+  Missing (both-side):   0
+
+Profile Scores:
+  Same Instance     raw= 86.0 adjusted= 81.6
+  Same Environment  raw= 90.0 adjusted= 84.5
+  Same Device       raw= 92.0 adjusted= 85.1
+  Same Entity       raw= 95.0 adjusted= 85.6
+
+Trust Policy Flags:
+  - generic_software_locale
+
+Family Scores (similarity / coverage / effective):
+  rendering   60.0 / 100.0% /  60.0
+  structural 100.0 / 100.0% / 100.0
+  software   100.0 / 100.0% / 100.0
+  locale     100.0 / 100.0% / 100.0
+  misc       100.0 / 100.0% / 100.0
+
+Top Contributing Matches:
+ screen.height: 100% (weight: 0.100, contribution: 10.00)
+ screen.width: 100% (weight: 0.100, contribution: 10.00)
+ webgl: 100% (weight: 0.087, contribution: 8.75)
+ audio: 100% (weight: 0.062, contribution: 6.25)
+ fonts: 100% (weight: 0.060, contribution: 6.00)
+
+Top Disagreements:
+canvas: 9% (weight: 0.100, penalty: 9.09)
+      A: it0izb
+      B: 1xq2vk0
+
+
+
+
+======================================================================
+DEMO 2: Same Device, High Drift (Cross-Browser Simulation)
+======================================================================
+=== Score Breakdown ===
+Overall Confidence: 63.0/100
+
+Identity Layer:
+  Raw Similarity:        68.1/100
+  Commonness Score:      35.6/100
+  Distinctiveness Score: 64.4/100
+  Collision Risk:        20.0/100
+  Insufficiency Risk:    0.0/100
+  Trust-Adjusted:        63.0/100
+  Trust Shift:           -5.1
+  Trust Adjustment:      5.1
+  Confidence Label:      ordinary
+  Policy Action:         normal
+  Uncertainty Zone:      False
+  Decision Threshold:    65.0
+  Threshold Distance:    2.0
+
+Dimensions:
+  Device Similarity:     56.1/100
+  Evidence Richness:     100.0/100
+  Field Agreement:       83.9% (31 fields)
+  Structural Stability:  61.2/100
+  Entropy Contribution:  25.0/100
+  Attractor Risk:        30.0/100
+  Missing (one-side):    0
+  Missing (both-side):   0
+
+Profile Scores:
+  Same Instance     raw= 61.0 adjusted= 57.9
+  Same Environment  raw= 66.3 adjusted= 62.2
+  Same Device       raw= 68.1 adjusted= 63.0
+  Same Entity       raw= 78.3 adjusted= 70.5
+
+Trust Policy Flags:
+  - generic_software_locale
+
+Family Scores (similarity / coverage / effective):
+  rendering   25.0 / 100.0% /  25.0
+  structural  55.2 / 100.0% /  55.2
+  software    93.8 / 100.0% /  93.8
+  locale     100.0 / 100.0% / 100.0
+  misc       100.0 / 100.0% / 100.0
+
+Top Contributing Matches:
+ audio: 100% (weight: 0.062, contribution: 6.25)
+ hardwareConcurrency: 100% (weight: 0.060, contribution: 6.00)
+ deviceMemory: 100% (weight: 0.050, contribution: 5.00)
+ highEntropyValues: 100% (weight: 0.040, contribution: 4.00)
+ platform: 100% (weight: 0.040, contribution: 4.00)
+
+Top Disagreements:
+screen.width: 0% (weight: 0.100, penalty: 10.00)
+      A: 384
+      B: 1920
+webgl: 9% (weight: 0.087, penalty: 7.95)
+      A: t0fnm6
+      B: st2qwl
+canvas: 22% (weight: 0.100, penalty: 7.78)
+      A: it0izb
+      B: 1i0361x
+screen.height: 25% (weight: 0.100, penalty: 7.46)
+      A: 493
+      B: 1080
+
+
+
+
+======================================================================
+DEMO 3: Different Devices
+======================================================================
+=== Score Breakdown ===
+Overall Confidence: 38.9/100
+
+Identity Layer:
+  Raw Similarity:        42.1/100
+  Commonness Score:      21.9/100
+  Distinctiveness Score: 78.1/100
+  Collision Risk:        20.0/100
+  Insufficiency Risk:    0.0/100
+  Trust-Adjusted:        38.9/100
+  Trust Shift:           -3.2
+  Trust Adjustment:      3.2
+  Confidence Label:      ordinary
+  Policy Action:         normal
+  Uncertainty Zone:      False
+  Decision Threshold:    65.0
+  Threshold Distance:    26.1
+
+Dimensions:
+  Device Similarity:     26.6/100
+  Evidence Richness:     100.0/100
+  Field Agreement:       41.9% (31 fields)
+  Structural Stability:  40.9/100
+  Entropy Contribution:  0.0/100
+  Attractor Risk:        27.5/100
+  Missing (one-side):    0
+  Missing (both-side):   0
+
+Profile Scores:
+  Same Instance     raw= 28.8 adjusted= 27.3
+  Same Environment  raw= 32.6 adjusted= 30.6
+  Same Device       raw= 42.1 adjusted= 38.9
+  Same Entity       raw= 46.4 adjusted= 41.8
+
+Family Scores (similarity / coverage / effective):
+  rendering    0.0 / 100.0% /   0.0
+  structural  45.0 / 100.0% /  45.0
+  software    24.2 / 100.0% /  24.2
+  locale      30.0 / 100.0% /  30.0
+  misc        86.0 / 100.0% /  86.0
+
+Top Contributing Matches:
+ screen.colorDepth: 94% (weight: 0.040, contribution: 3.74)
+ screen.pixelDepth: 94% (weight: 0.030, contribution: 2.81)
+ mimeTypes: 100% (weight: 0.020, contribution: 2.00)
+ appVersion: 97% (weight: 0.020, contribution: 1.94)
+ appCodeName: 100% (weight: 0.005, contribution: 0.50)
+
+Top Disagreements:
+screen.width: 0% (weight: 0.100, penalty: 10.00)
+      A: 475
+      B: 1600
+canvas: 30% (weight: 0.100, penalty: 7.00)
+      A: 14u9qlk
+      B: 1ccbl39
+webgl: 22% (weight: 0.087, penalty: 6.81)
+      A: ula5vo
+      B: sadmus
+audio: 0% (weight: 0.062, penalty: 6.25)
+      A: 92n75x
+      B: bqzqfj
+fonts: 5% (weight: 0.060, penalty: 5.68)
+      A: [7 items]
+      B: [13 items]
+
+
+
+
+======================================================================
+DEMO 4: Evidence Richness
+======================================================================
+Rich fingerprint evidence score: 100.0/100
+Sparse fingerprint evidence score: 10.6/100
+
+=== Score Breakdown ===
+Overall Confidence: 48.5/100
+
+Identity Layer:
+  Raw Similarity:        19.4/100
+  Commonness Score:      23.3/100
+  Distinctiveness Score: 76.7/100
+  Collision Risk:        0.0/100
+  Insufficiency Risk:    100.0/100
+  Trust-Adjusted:        48.5/100
+  Trust Shift:           +29.1
+  Trust Adjustment:      29.1
+  Confidence Label:      abstain
+  Policy Action:         abstain
+  Uncertainty Zone:      True
+  Decision Threshold:    65.0
+  Threshold Distance:    16.5
+
+Dimensions:
+  Device Similarity:     17.4/100
+  Evidence Richness:     10.0/100
+  Field Agreement:       66.7% (3 fields)
+  Structural Stability:  73.8/100
+  Entropy Contribution:  0.0/100
+  Attractor Risk:        22.5/100
+  Missing (one-side):    28
+  Missing (both-side):   0
+
+Profile Scores:
+  Same Instance     raw= 22.3 adjusted= 46.0
+  Same Environment  raw= 23.9 adjusted= 47.0
+  Same Device       raw= 19.4 adjusted= 48.5
+  Same Entity       raw= 23.3 adjusted= 50.6
+
+Trust Policy Flags:
+  - insufficient_evidence
+  - low_comparable_fields
+  - missing_key_families
+  - entropy_family_absent
+  - structural_family_absent
+  - thin_software_family
+  - sparse_observation
+  - too_partial_for_identity
+  - too_incomplete_for_identity
+  - low_confidence_by_insufficiency
+  - abstain_recommended
+
+Family Scores (similarity / coverage / effective):
+  rendering    0.0 /   0.0% /   0.0
+  structural   0.0 /   0.0% /   0.0
+  software   100.0 /  29.2% /  78.8
+  locale      38.9 /  42.9% /  32.2
+  misc         0.0 /   0.0% /   0.0
+
+Top Contributing Matches:
+ platform: 100% (weight: 0.040, contribution: 4.00)
+ userAgent: 100% (weight: 0.030, contribution: 3.00)
+
+Top Disagreements:
+timezone: 39% (weight: 0.030, penalty: 1.83)
+      A: Australia/Sydney
+      B: America/New_York
+
+Missing Fields (28):
+  - appCodeName (missing in fp2)
+  - appMinorVersion (missing in fp2)
+  - appName (missing in fp2)
+  - appVersion (missing in fp2)
+  - audio (missing in fp2)
+  ... and 23 more
+
+
+
+
+======================================================================
+DEMO 5: Attractor Risk Detection
+======================================================================
+Generic fingerprint attractor risk: 85.0/100
+Unique fingerprint attractor risk: 40.0/100
+
+
+
+
+======================================================================
+DEMO 6: Dataset Analysis
+======================================================================
+
+--- Device: dev_167031cf... ---
+Is Attractor: False
+Overall Confidence: 71.7/100
+Device Similarity: 88.0/100
+Entropy Contribution: 60.0/100
+Attractor Risk: 50.0/100
+
+--- Device: dev_711a5b58... ---
+Is Attractor: False
+Overall Confidence: 71.7/100
+Device Similarity: 88.0/100
+Entropy Contribution: 60.0/100
+Attractor Risk: 50.0/100
+
+
+
+======================================================================
+DEMO 7: Large Dataset Threshold Comparison
+======================================================================
+Dataset size: 2000 devices x 5 sessions
+Compared pairs: 5750
+
+Cohort Summary (means):
+cohort                | pairs | legacy_mean | same_instance_mean | same_environment_mean | same_device_mean | same_entity_mean | richness_mean | attractor_risk_mean
+----------------------+-------+-------------+--------------------+-----------------------+------------------+------------------+---------------+--------------------
+sameDevice            | 2500  | 82.774      | 68.207             | 70.880                | 70.558           | 70.189           | 100.000       | 31.856             
+differentDevice       | 3250  | 44.151      | 34.785             | 38.237                | 45.606           | 47.114           | 100.000       | 32.173             
+attractorImpostor     | 686   | 39.993      | 32.624             | 36.566                | 44.050           | 45.727           | 100.000       | 49.388             
+separation(same-diff) | -     | 38.623      | 33.422             | 32.644                | 24.952           | 23.075           | 0.000         | -                  
+
+Per-threshold table (legacy):
+threshold | precision | recall | f1    | far   | frr   | gap_far_frr
+----------+-----------+--------+-------+-------+-------+------------
+0         | 0.435     | 1.000  | 0.606 | 1.000 | 0.000 | 1.000      
+5         | 0.435     | 1.000  | 0.606 | 1.000 | 0.000 | 1.000      
+10        | 0.435     | 1.000  | 0.606 | 1.000 | 0.000 | 1.000      
+15        | 0.435     | 1.000  | 0.606 | 1.000 | 0.000 | 1.000      
+20        | 0.435     | 1.000  | 0.606 | 1.000 | 0.000 | 1.000      
+25        | 0.436     | 1.000  | 0.607 | 0.996 | 0.000 | 0.996      
+30        | 0.441     | 1.000  | 0.612 | 0.977 | 0.000 | 0.977      
+35        | 0.460     | 1.000  | 0.631 | 0.901 | 0.000 | 0.901      
+40        | 0.509     | 1.000  | 0.674 | 0.742 | 0.000 | 0.742      
+45        | 0.604     | 1.000  | 0.753 | 0.504 | 0.000 | 0.504      
+50        | 0.761     | 1.000  | 0.864 | 0.242 | 0.000 | 0.242      
+55        | 0.931     | 1.000  | 0.964 | 0.057 | 0.000 | 0.057      
+60        | 0.983     | 0.997  | 0.990 | 0.013 | 0.003 | 0.010      
+65        | 0.995     | 0.978  | 0.986 | 0.004 | 0.022 | 0.018      
+70        | 1.000     | 0.897  | 0.946 | 0.000 | 0.103 | 0.103      
+75        | 1.000     | 0.753  | 0.859 | 0.000 | 0.247 | 0.247      
+80        | 1.000     | 0.543  | 0.704 | 0.000 | 0.457 | 0.457      
+85        | 1.000     | 0.378  | 0.549 | 0.000 | 0.622 | 0.622      
+90        | 1.000     | 0.273  | 0.429 | 0.000 | 0.727 | 0.727      
+95        | 1.000     | 0.200  | 0.333 | 0.000 | 0.800 | 0.800      
+100       | 1.000     | 0.200  | 0.333 | 0.000 | 0.800 | 0.800      
+
+Benchmark summary:
+profile          | best_f1_threshold | best_f1 | eer_threshold | eer  
+-----------------+-------------------+---------+---------------+------
+legacy           | 60                | 0.990   | 61.826        | 0.010
+same_instance    | 45                | 0.983   | 45.364        | 0.016
+same_environment | 50                | 0.976   | 49.537        | 0.026
+same_device      | 55                | 0.909   | 53.583        | 0.102
+same_entity      | 60                | 0.871   | 52.339        | 0.178
+
+Threshold Comparison (F1):
+threshold | legacy_f1 | instance_f1 | environment_f1 | device_f1 | entity_f1
+----------+-----------+-------------+----------------+-----------+----------
+0         | 0.606     | 0.606       | 0.606          | 0.606     | 0.606    
+5         | 0.606     | 0.606       | 0.606          | 0.606     | 0.606    
+10        | 0.606     | 0.606       | 0.606          | 0.606     | 0.606    
+15        | 0.606     | 0.606       | 0.606          | 0.606     | 0.606    
+20        | 0.606     | 0.606       | 0.606          | 0.606     | 0.606    
+25        | 0.607     | 0.618       | 0.609          | 0.606     | 0.606    
+30        | 0.612     | 0.658       | 0.631          | 0.606     | 0.606    
+35        | 0.631     | 0.751       | 0.682          | 0.615     | 0.607    
+40        | 0.674     | 0.896       | 0.795          | 0.652     | 0.593    
+45        | 0.753     | 0.983       | 0.916          | 0.733     | 0.627    
+50        | 0.864     | 0.962       | 0.976          | 0.829     | 0.752    
+55        | 0.964     | 0.897       | 0.952          | 0.909     | 0.864    
+60        | 0.990     | 0.826       | 0.891          | 0.870     | 0.871    
+65        | 0.986     | 0.731       | 0.772          | 0.798     | 0.867    
+70        | 0.946     | 0.682       | 0.682          | 0.702     | 0.791    
+75        | 0.859     | 0.431       | 0.583          | 0.608     | 0.690    
+80        | 0.704     | 0.397       | 0.397          | 0.507     | 0.443    
+85        | 0.549     | 0.205       | 0.205          | 0.235     | 0.235    
+90        | 0.429     | 0.000       | 0.000          | 0.000     | 0.000    
+95        | 0.333     | 0.000       | 0.000          | 0.000     | 0.000    
+100       | 0.333     | 0.000       | 0.000          | 0.000     | 0.000    
+
+Threshold Comparison (FAR/FRR Gap):
+threshold | legacy_gap | instance_gap | environment_gap | device_gap | entity_gap
+----------+------------+--------------+-----------------+------------+-----------
+0         | 1.000      | 1.000        | 1.000           | 1.000      | 1.000     
+5         | 1.000      | 1.000        | 1.000           | 1.000      | 1.000     
+10        | 1.000      | 1.000        | 1.000           | 1.000      | 1.000     
+15        | 1.000      | 1.000        | 1.000           | 1.000      | 1.000     
+20        | 1.000      | 0.999        | 1.000           | 1.000      | 1.000     
+25        | 0.996      | 0.950        | 0.988           | 1.000      | 1.000     
+30        | 0.977      | 0.798        | 0.900           | 0.998      | 1.000     
+35        | 0.901      | 0.511        | 0.716           | 0.963      | 0.992     
+40        | 0.742      | 0.176        | 0.396           | 0.816      | 0.838     
+45        | 0.504      | 0.006        | 0.130           | 0.523      | 0.515     
+50        | 0.242      | 0.073        | 0.013           | 0.180      | 0.117     
+55        | 0.057      | 0.187        | 0.091           | 0.071      | 0.133     
+60        | 0.010      | 0.296        | 0.196           | 0.222      | 0.214     
+65        | 0.018      | 0.424        | 0.372           | 0.336      | 0.235     
+70        | 0.103      | 0.482        | 0.482           | 0.459      | 0.346     
+75        | 0.247      | 0.725        | 0.588           | 0.563      | 0.473     
+80        | 0.457      | 0.752        | 0.752           | 0.660      | 0.716     
+85        | 0.622      | 0.886        | 0.886           | 0.867      | 0.867     
+90        | 0.727      | 1.000        | 1.000           | 1.000      | 1.000     
+95        | 0.800      | 1.000        | 1.000           | 1.000      | 1.000     
+100       | 0.800      | 1.000        | 1.000           | 1.000      | 1.000     
+

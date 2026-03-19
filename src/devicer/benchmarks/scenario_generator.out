@@ -1,0 +1,467 @@
+======================================================================
+DEMO 1: Individual Scenario Types
+======================================================================
+
+--- BrowserDrift/Minor ---
+Expected Match: True
+Difficulty: easy
+Description: Same device, minor browser patch update
+Overall Confidence: 85.1/100
+Same Instance: 81.6/100
+Same Environment: 84.5/100
+Same Device: 85.1/100
+Same Entity: 85.6/100
+Entropy Contribution: 60.0/100
+Attractor Risk: 20.0/100
+
+--- BrowserDrift/CrossBrowser ---
+Expected Match: True
+Difficulty: hard
+Description: Same device, different browser (Chrome ↔ Firefox/Safari)
+Overall Confidence: 76.7/100
+Same Instance: 67.5/100
+Same Environment: 73.8/100
+Same Device: 76.7/100
+Same Entity: 79.9/100
+Entropy Contribution: 25.0/100
+Attractor Risk: 50.0/100
+
+--- PrivacyHardening/TorBrowser ---
+Expected Match: False
+Difficulty: extreme
+Description: Two different Tor Browser users (unified fingerprints)
+Overall Confidence: 55.0/100
+Same Instance: 68.8/100
+Same Environment: 62.9/100
+Same Device: 55.0/100
+Same Entity: 41.2/100
+Entropy Contribution: 100.0/100
+Attractor Risk: 55.0/100
+
+--- AdversarialPerturbation/CanvasNoise ---
+Expected Match: True
+Difficulty: extreme
+Description: Same device, adversarial noise injection on canvas/WebGL
+Overall Confidence: 74.0/100
+Same Instance: 61.7/100
+Same Environment: 70.4/100
+Same Device: 74.0/100
+Same Entity: 78.9/100
+Entropy Contribution: 0.0/100
+Attractor Risk: 50.0/100
+
+--- CommodityCollision/CorporateFleet ---
+Expected Match: False
+Difficulty: extreme
+Description: Different users, identical corporate laptops
+Overall Confidence: 53.1/100
+Same Instance: 49.5/100
+Same Environment: 54.1/100
+Same Device: 53.1/100
+Same Entity: 49.3/100
+Entropy Contribution: 0.0/100
+Attractor Risk: 70.0/100
+
+======================================================================
+DEMO 2: Scenario Categories
+======================================================================
+
+BrowserDrift:
+  - BrowserDrift/Minor
+  - BrowserDrift/Major
+  - BrowserDrift/CrossBrowser
+
+EnvironmentChange:
+  - EnvironmentChange/HomeOffice
+  - EnvironmentChange/DockExternal
+  - EnvironmentChange/MobileDesktop
+
+PrivacyHardening:
+  - PrivacyHardening/TorBrowser
+  - PrivacyHardening/ResistFingerprinting
+  - PrivacyHardening/CanvasDefender
+
+AdversarialPerturbation:
+  - AdversarialPerturbation/CanvasNoise
+  - AdversarialPerturbation/FontRandomization
+  - AdversarialPerturbation/UARotation
+
+MobilityChurn:
+  - MobilityChurn/TimezoneTravel
+  - MobilityChurn/VPNActivation
+
+CommodityCollision:
+  - CommodityCollision/CorporateFleet
+  - CommodityCollision/iPhoneDefaults
+  - CommodityCollision/PublicTerminal
+
+======================================================================
+DEMO 3: Detailed Scenario Analysis
+======================================================================
+
+--- Cross-Browser Scenario (Hard Case) ---
+
+Ground Truth: True
+Difficulty: hard
+Description: Same device, different browser (Chrome ↔ Firefox/Safari)
+
+=== Score Breakdown ===
+Overall Confidence: 72.9/100
+
+Identity Layer:
+  Raw Similarity:        78.8/100
+  Commonness Score:      48.1/100
+  Distinctiveness Score: 51.9/100
+  Collision Risk:        20.0/100
+  Insufficiency Risk:    0.0/100
+  Trust-Adjusted:        72.9/100
+  Trust Shift:           -5.9
+  Trust Adjustment:      5.9
+  Confidence Label:      ordinary
+  Policy Action:         normal
+  Uncertainty Zone:      False
+  Decision Threshold:    65.0
+  Threshold Distance:    7.9
+
+Dimensions:
+  Device Similarity:     71.3/100
+  Evidence Richness:     100.0/100
+  Field Agreement:       80.6% (31 fields)
+  Structural Stability:  100.0/100
+  Entropy Contribution:  25.0/100
+  Attractor Risk:        50.0/100
+  Missing (one-side):    0
+  Missing (both-side):   0
+
+Profile Scores:
+  Same Instance     raw= 66.0 adjusted= 62.6
+  Same Environment  raw= 73.5 adjusted= 69.0
+  Same Device       raw= 78.8 adjusted= 72.9
+  Same Entity       raw= 84.8 adjusted= 76.4
+
+Family Scores (similarity / coverage / effective):
+  rendering   25.0 / 100.0% /  25.0
+  structural 100.0 / 100.0% / 100.0
+  software    68.9 / 100.0% /  68.9
+  locale     100.0 / 100.0% / 100.0
+  misc        90.0 / 100.0% /  90.0
+
+Top Contributing Matches:
+ screen.height: 100% (weight: 0.100, contribution: 10.00)
+ screen.width: 100% (weight: 0.100, contribution: 10.00)
+ audio: 100% (weight: 0.062, contribution: 6.25)
+ fonts: 100% (weight: 0.060, contribution: 6.00)
+ hardwareConcurrency: 100% (weight: 0.060, contribution: 6.00)
+
+Top Disagreements:
+canvas: 9% (weight: 0.100, penalty: 9.09)
+      A: ibd47q
+      B: nv3489
+webgl: 9% (weight: 0.087, penalty: 7.95)
+      A: 1e7bj3f
+      B: s3kso8
+plugins: 0% (weight: 0.030, penalty: 3.00)
+      A: [1 items]
+      B: [0 items]
+mimeTypes: 0% (weight: 0.020, penalty: 2.00)
+      A: [1 items]
+      B: [0 items]
+vendor: 0% (weight: 0.005, penalty: 0.50)
+      A: Google Inc.
+      B: 
+
+
+======================================================================
+DEMO 4: Attractor Collision (Extreme Case)
+======================================================================
+
+--- Corporate Fleet Collision ---
+
+Ground Truth: False (different users!)
+ Difficulty: extreme
+ Description: Different users, identical corporate laptops
+
+=== Score Breakdown ===
+Overall Confidence: 53.1/100
+
+Identity Layer:
+  Raw Similarity:        78.2/100
+  Commonness Score:      64.0/100
+  Distinctiveness Score: 36.0/100
+  Collision Risk:        75.1/100
+  Insufficiency Risk:    0.0/100
+  Trust-Adjusted:        53.1/100
+  Trust Shift:           -25.1
+  Trust Adjustment:      25.1
+  Confidence Label:      ordinary
+  Policy Action:         normal
+  Uncertainty Zone:      False
+  Decision Threshold:    65.0
+  Threshold Distance:    11.9
+
+Dimensions:
+  Device Similarity:     69.0/100
+  Evidence Richness:     96.0/100
+  Field Agreement:       89.3% (28 fields)
+  Structural Stability:  100.0/100
+  Entropy Contribution:  0.0/100
+  Attractor Risk:        70.0/100
+  Missing (one-side):    0
+  Missing (both-side):   1
+
+Profile Scores:
+  Same Instance     raw= 63.3 adjusted= 49.5
+  Same Environment  raw= 73.3 adjusted= 54.1
+  Same Device       raw= 78.2 adjusted= 53.1
+  Same Entity       raw= 85.6 adjusted= 49.3
+
+Trust Policy Flags:
+  - high_commonness_profile
+  - rich_but_common
+  - generic_software_locale
+
+Family Scores (similarity / coverage / effective):
+  rendering    0.0 / 100.0% /   0.0
+  structural 100.0 / 100.0% / 100.0
+  software   100.0 /  83.3% /  95.0
+  locale     100.0 / 100.0% / 100.0
+  misc       100.0 / 100.0% / 100.0
+
+Top Contributing Matches:
+ screen.height: 100% (weight: 0.100, contribution: 10.00)
+ screen.width: 100% (weight: 0.100, contribution: 10.00)
+ fonts: 100% (weight: 0.060, contribution: 6.00)
+ hardwareConcurrency: 100% (weight: 0.060, contribution: 6.00)
+ deviceMemory: 100% (weight: 0.050, contribution: 5.00)
+
+Top Disagreements:
+canvas: 22% (weight: 0.100, penalty: 7.78)
+      A: gab1jb
+      B: gauz84
+webgl: 33% (weight: 0.087, penalty: 5.83)
+      A: 7j2re4
+      B: 7jmk20
+audio: 20% (weight: 0.062, penalty: 5.00)
+      A: oz14hx
+      B: 1rve3hv
+
+
+False Positive Risk:
+ Attractor Risk: 70.0/100
+ Evidence Richness: 96.0/100
+ Structural Stability: 100.0/100
+High confidence, but they're different users!
+
+======================================================================
+DEMO 5: Privacy Hardening Scenarios
+======================================================================
+
+--- PrivacyHardening/TorBrowser ---
+Expected Match: False
+Description: Two different Tor Browser users (unified fingerprints)
+
+Scores:
+  Overall Confidence: 55.0/100
+  Evidence Richness: 96.0/100
+  Entropy Contribution: 100.0/100
+  Missing Fields: 0
+
+--- PrivacyHardening/ResistFingerprinting ---
+Expected Match: True
+Description: Same device, Firefox resist fingerprinting enabled
+
+Scores:
+  Overall Confidence: 50.7/100
+  Evidence Richness: 75.0/100
+  Entropy Contribution: 0.0/100
+  Missing Fields: 3
+
+--- PrivacyHardening/CanvasDefender ---
+Expected Match: True
+Description: Same device, canvas defender extension active
+
+Scores:
+  Overall Confidence: 71.7/100
+  Evidence Richness: 100.0/100
+  Entropy Contribution: 60.0/100
+  Missing Fields: 0
+
+======================================================================
+DEMO 6: Balanced Dataset Generation
+======================================================================
+
+Generated 20 scenario pairs
+
+By Scenario Type:
+  AdversarialPerturbation/CanvasNoise: 1
+  AdversarialPerturbation/FontRandomization: 1
+  AdversarialPerturbation/UARotation: 1
+  BrowserDrift/CrossBrowser: 1
+  BrowserDrift/Major: 1
+  BrowserDrift/Minor: 1
+  CommodityCollision/CorporateFleet: 1
+  CommodityCollision/PublicTerminal: 1
+  CommodityCollision/iPhoneDefaults: 2
+  EnvironmentChange/DockExternal: 1
+  EnvironmentChange/HomeOffice: 1
+  EnvironmentChange/MobileDesktop: 2
+  MobilityChurn/TimezoneTravel: 1
+  MobilityChurn/VPNActivation: 1
+  PrivacyHardening/CanvasDefender: 2
+  PrivacyHardening/ResistFingerprinting: 1
+  PrivacyHardening/TorBrowser: 1
+
+By Expected Match:
+  Should Match: 14
+  Should NOT Match: 6
+
+By Difficulty:
+  easy: 3
+  extreme: 6
+  hard: 6
+  medium: 5
+
+======================================================================
+DEMO 7: Custom Distribution (Focus on Hard Cases)
+======================================================================
+
+Generated 50 pairs with custom distribution
+Focus: Hard and extreme cases (privacy, collisions, adversarial)
+
+Difficulty Distribution:
+  easy: 6 (12.0%)
+  medium: 0 (0.0%)
+  hard: 20 (40.0%)
+  extreme: 24 (48.0%)
+
+======================================================================
+DEMO 8: Scenario Benchmark (Profile-Aware)
+======================================================================
+Generated scenario pairs: 500
+
+Scenario Type Means:
+scenario_type                             | pairs | expected_match_pct | overall_mean | instance_mean | environment_mean | device_mean | entity_mean | richness_mean | attractor_risk_mean
+------------------------------------------+-------+--------------------+--------------+---------------+------------------+-------------+-------------+---------------+--------------------
+AdversarialPerturbation/CanvasNoise       | 29    | 100.000            | 73.655       | 61.485        | 70.133           | 73.655      | 78.352      | 100.000       | 25.690             
+AdversarialPerturbation/FontRandomization | 30    | 100.000            | 73.504       | 79.609        | 76.630           | 73.504      | 66.663      | 100.000       | 23.250             
+AdversarialPerturbation/UARotation        | 29    | 100.000            | 76.428       | 82.971        | 80.015           | 76.428      | 69.581      | 100.000       | 27.586             
+BrowserDrift/CrossBrowser                 | 29    | 100.000            | 74.337       | 64.475        | 70.822           | 74.337      | 77.752      | 100.000       | 30.345             
+BrowserDrift/Major                        | 31    | 100.000            | 82.776       | 79.970        | 82.507           | 82.776      | 82.549      | 100.000       | 24.113             
+BrowserDrift/Minor                        | 30    | 100.000            | 82.700       | 80.070        | 82.554           | 82.700      | 82.342      | 100.000       | 20.667             
+CommodityCollision/CorporateFleet         | 29    | 0.000              | 53.088       | 49.479        | 54.079           | 53.088      | 49.346      | 95.960        | 70.000             
+CommodityCollision/PublicTerminal         | 29    | 100.000            | 73.688       | 82.060        | 78.472           | 73.688      | 65.316      | 100.000       | 30.690             
+CommodityCollision/iPhoneDefaults         | 30    | 0.000              | 52.775       | 57.513        | 57.318           | 52.775      | 44.345      | 87.626        | 65.000             
+EnvironmentChange/DockExternal            | 29    | 100.000            | 66.250       | 76.062        | 71.607           | 66.250      | 61.370      | 100.000       | 27.931             
+EnvironmentChange/HomeOffice              | 29    | 100.000            | 74.638       | 74.086        | 75.487           | 74.638      | 77.128      | 100.000       | 25.862             
+EnvironmentChange/MobileDesktop           | 29    | 0.000              | 48.269       | 36.045        | 42.104           | 48.269      | 55.166      | 100.000       | 24.828             
+MobilityChurn/TimezoneTravel              | 29    | 100.000            | 77.899       | 84.514        | 80.594           | 77.899      | 68.684      | 100.000       | 22.931             
+MobilityChurn/VPNActivation               | 29    | 100.000            | 73.929       | 80.315        | 77.256           | 73.929      | 65.555      | 100.000       | 28.103             
+PrivacyHardening/CanvasDefender           | 30    | 100.000            | 79.586       | 75.134        | 78.869           | 79.586      | 80.008      | 100.000       | 21.833             
+PrivacyHardening/ResistFingerprinting     | 30    | 100.000            | 53.936       | 47.499        | 53.455           | 53.936      | 60.265      | 75.000        | 37.417             
+PrivacyHardening/TorBrowser               | 29    | 0.000              | 54.987       | 68.842        | 62.941           | 54.987      | 41.182      | 95.960        | 55.000             
+
+Per-threshold table (overall):
+threshold | precision | recall | f1    | far   | frr   | gap_far_frr
+----------+-----------+--------+-------+-------+-------+------------
+0         | 0.766     | 1.000  | 0.867 | 1.000 | 0.000 | 1.000      
+5         | 0.766     | 1.000  | 0.867 | 1.000 | 0.000 | 1.000      
+10        | 0.766     | 1.000  | 0.867 | 1.000 | 0.000 | 1.000      
+15        | 0.766     | 1.000  | 0.867 | 1.000 | 0.000 | 1.000      
+20        | 0.766     | 1.000  | 0.867 | 1.000 | 0.000 | 1.000      
+25        | 0.766     | 1.000  | 0.867 | 1.000 | 0.000 | 1.000      
+30        | 0.766     | 1.000  | 0.867 | 1.000 | 0.000 | 1.000      
+35        | 0.769     | 1.000  | 0.869 | 0.983 | 0.000 | 0.983      
+40        | 0.772     | 1.000  | 0.871 | 0.966 | 0.000 | 0.966      
+45        | 0.781     | 0.997  | 0.876 | 0.915 | 0.003 | 0.912      
+50        | 0.783     | 0.969  | 0.866 | 0.880 | 0.031 | 0.849      
+55        | 0.989     | 0.909  | 0.947 | 0.034 | 0.091 | 0.057      
+60        | 1.000     | 0.815  | 0.898 | 0.000 | 0.185 | 0.185      
+65        | 1.000     | 0.802  | 0.890 | 0.000 | 0.198 | 0.198      
+70        | 1.000     | 0.721  | 0.838 | 0.000 | 0.279 | 0.279      
+75        | 1.000     | 0.540  | 0.702 | 0.000 | 0.460 | 0.460      
+80        | 1.000     | 0.467  | 0.637 | 0.000 | 0.533 | 0.533      
+85        | 1.000     | 0.146  | 0.255 | 0.000 | 0.854 | 0.854      
+90        | 0.000     | 0.000  | 0.000 | 0.000 | 1.000 | 1.000      
+95        | 0.000     | 0.000  | 0.000 | 0.000 | 1.000 | 1.000      
+100       | 0.000     | 0.000  | 0.000 | 0.000 | 1.000 | 1.000      
+
+Benchmark summary:
+profile          | best_f1_threshold | best_f1 | eer_threshold | eer  
+-----------------+-------------------+---------+---------------+------
+overall          | 55                | 0.947   | 54.684        | 0.088
+same_instance    | 60                | 0.917   | 65.473        | 0.232
+same_environment | 60                | 0.915   | 62.320        | 0.137
+same_device      | 55                | 0.947   | 54.684        | 0.088
+same_entity      | 55                | 0.912   | 55.627        | 0.134
+
+Threshold Comparison (F1):
+threshold | overall_f1 | instance_f1 | environment_f1 | device_f1 | entity_f1
+----------+------------+-------------+----------------+-----------+----------
+0         | 0.867      | 0.867       | 0.867          | 0.867     | 0.867    
+5         | 0.867      | 0.867       | 0.867          | 0.867     | 0.867    
+10        | 0.867      | 0.867       | 0.867          | 0.867     | 0.867    
+15        | 0.867      | 0.867       | 0.867          | 0.867     | 0.867    
+20        | 0.867      | 0.867       | 0.867          | 0.867     | 0.867    
+25        | 0.867      | 0.869       | 0.868          | 0.867     | 0.867    
+30        | 0.867      | 0.871       | 0.870          | 0.867     | 0.867    
+35        | 0.869      | 0.878       | 0.871          | 0.869     | 0.867    
+40        | 0.871      | 0.890       | 0.877          | 0.871     | 0.854    
+45        | 0.876      | 0.881       | 0.885          | 0.876     | 0.877    
+50        | 0.866      | 0.900       | 0.882          | 0.866     | 0.907    
+55        | 0.947      | 0.888       | 0.902          | 0.947     | 0.912    
+60        | 0.898      | 0.917       | 0.915          | 0.898     | 0.887    
+65        | 0.890      | 0.840       | 0.895          | 0.890     | 0.871    
+70        | 0.838      | 0.784       | 0.853          | 0.838     | 0.831    
+75        | 0.702      | 0.706       | 0.688          | 0.702     | 0.776    
+80        | 0.637      | 0.630       | 0.642          | 0.637     | 0.401    
+85        | 0.255      | 0.346       | 0.132          | 0.255     | 0.313    
+90        | 0.000      | 0.000       | 0.000          | 0.000     | 0.000    
+95        | 0.000      | 0.000       | 0.000          | 0.000     | 0.000    
+100       | 0.000      | 0.000       | 0.000          | 0.000     | 0.000    
+
+Threshold Comparison (FAR/FRR Gap):
+threshold | overall_gap | instance_gap | environment_gap | device_gap | entity_gap
+----------+-------------+--------------+-----------------+------------+-----------
+0         | 1.000       | 1.000        | 1.000           | 1.000      | 1.000     
+5         | 1.000       | 1.000        | 1.000           | 1.000      | 1.000     
+10        | 1.000       | 1.000        | 1.000           | 1.000      | 1.000     
+15        | 1.000       | 1.000        | 1.000           | 1.000      | 1.000     
+20        | 1.000       | 1.000        | 1.000           | 1.000      | 1.000     
+25        | 1.000       | 0.983        | 0.991           | 1.000      | 1.000     
+30        | 1.000       | 0.966        | 0.974           | 1.000      | 1.000     
+35        | 0.983       | 0.906        | 0.966           | 0.983      | 1.000     
+40        | 0.966       | 0.812        | 0.915           | 0.966      | 0.963     
+45        | 0.912       | 0.752        | 0.855           | 0.912      | 0.374     
+50        | 0.849       | 0.449        | 0.765           | 0.849      | 0.076     
+55        | 0.057       | 0.426        | 0.452           | 0.057      | 0.020     
+60        | 0.185       | 0.170        | 0.165           | 0.185      | 0.139     
+65        | 0.198       | 0.037        | 0.191           | 0.198      | 0.219     
+70        | 0.279       | 0.355        | 0.256           | 0.279      | 0.290     
+75        | 0.460       | 0.454        | 0.475           | 0.460      | 0.366     
+80        | 0.533       | 0.540        | 0.527           | 0.533      | 0.749     
+85        | 0.854       | 0.791        | 0.930           | 0.854      | 0.815     
+90        | 1.000       | 1.000        | 1.000           | 1.000      | 1.000     
+95        | 1.000       | 1.000        | 1.000           | 1.000      | 1.000     
+100       | 1.000       | 1.000        | 1.000           | 1.000      | 1.000     
+
+
+======================================================================
+All scenarios available:
+======================================================================
+  - BrowserDrift/Minor
+  - BrowserDrift/Major
+  - BrowserDrift/CrossBrowser
+  - EnvironmentChange/HomeOffice
+  - EnvironmentChange/DockExternal
+  - EnvironmentChange/MobileDesktop
+  - PrivacyHardening/TorBrowser
+  - PrivacyHardening/ResistFingerprinting
+  - PrivacyHardening/CanvasDefender
+  - AdversarialPerturbation/CanvasNoise
+  - AdversarialPerturbation/FontRandomization
+  - AdversarialPerturbation/UARotation
+  - MobilityChurn/TimezoneTravel
+  - MobilityChurn/VPNActivation
+  - CommodityCollision/CorporateFleet
+  - CommodityCollision/iPhoneDefaults
+  - CommodityCollision/PublicTerminal
