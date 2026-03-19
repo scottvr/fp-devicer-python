@@ -1,0 +1,376 @@
+"""
+Demo script for scoring_breakdown.py
+
+Shows how to use the multi-dimensional scoring system
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+import sys
+from typing import Any, Dict, List
+
+from data_generator import LabeledFingerprint, generate_dataset, mutate, create_base_fingerprint
+from metrics import ScoredPair, calculate_metrics
+from scoring_breakdown import (
+    decompose_confidence,
+    format_breakdown,
+    calculate_evidence_richness,
+    calculate_attractor_risk,
+)
+
+try:
+    from devicer.libs.confidence import calculate_confidence
+except ModuleNotFoundError:
+    # Allows running this script directly from `src/devicer/benchmarks/`.
+    src_root = Path(__file__).resolve().parents[2]
+    if str(src_root) not in sys.path:
+        sys.path.insert(0, str(src_root))
+    from devicer.libs.confidence import calculate_confidence
+
+
+def _format_table(data: List[Dict[str, Any]]) -> str:
+    if not data:
+        return "(empty)\n"
+
+    keys = list(data[0].keys())
+    rows: List[List[str]] = []
+    for row in data:
+        values: List[str] = []
+        for key in keys:
+            val = row.get(key)
+            values.append(f"{val:.3f}" if isinstance(val, float) else str(val))
+        rows.append(values)
+
+    col_widths = [max(len(keys[i]), *(len(row[i]) for row in rows)) for i in range(len(keys))]
+    sep = "-+-".join("-" * width for width in col_widths)
+    header = " | ".join(keys[i].ljust(col_widths[i]) for i in range(len(keys)))
+    body = "\n".join(" | ".join(row[i].ljust(col_widths[i]) for i in range(len(keys))) for row in rows)
+    return f"{header}\n{sep}\n{body}\n"
+
+
+def _average(values: List[float]) -> float:
+    return (sum(values) / len(values)) if values else 0.0
+
+
+def _score_pair(
+    left: LabeledFingerprint,
+    right: LabeledFingerprint,
+    same_device: bool,
+) -> Dict[str, Any]:
+    breakdown = decompose_confidence(left.data, right.data, top_n=0)
+    return {
+        "legacyScore": float(calculate_confidence(left.data, right.data)),
+        "breakdownScore": float(breakdown.overall_confidence),
+        "deviceSimilarity": float(breakdown.device_similarity),
+        "entropyContribution": float(breakdown.entropy_contribution),
+        "attractorRisk": float(breakdown.attractor_risk),
+        "sameDevice": same_device,
+        "isAttractor": bool(left.is_attractor or right.is_attractor),
+    }
+
+
+def _generate_comparison_pairs(
+    groups: Dict[str, List[LabeledFingerprint]],
+    iterations: int = 2500,
+) -> List[Dict[str, Any]]:
+    devices = list(groups.keys())
+    sorted_by_size = sorted(devices, key=lambda x: len(groups[x]), reverse=True)
+    attractor_pool_size = max(1, int(len(sorted_by_size) * 0.1 + 0.9999))
+
+    scored_pairs: List[Dict[str, Any]] = []
+    for i in range(iterations):
+        dev = devices[i % len(devices)]
+        samples = groups[dev]
+        if len(samples) < 2:
+            continue
+
+        idx1 = i % len(samples)
+        idx2 = (idx1 + 1 + i) % len(samples)
+        a = samples[idx1]
+        b = samples[idx2]
+        scored_pairs.append(_score_pair(a, b, same_device=True))
+
+        dev2 = devices[(i + 1) % len(devices)]
+        c = groups[dev2][i % len(groups[dev2])]
+        d = groups[dev][(idx1 + 3) % len(samples)]
+
+        use_cross_browser = (i % 10) < 3
+        if use_cross_browser and len(samples) >= 2:
+            idx3 = (idx1 + (len(samples) // 2)) % len(samples)
+            cross_a = samples[idx3]
+            attractor_dev = sorted_by_size[i % attractor_pool_size]
+            attractor_samples = groups[attractor_dev]
+            attractor_sample = attractor_samples[i % len(attractor_samples)]
+            cross_b = (
+                attractor_sample
+                if attractor_dev != dev
+                else groups[dev2][i % len(groups[dev2])]
+            )
+            scored_pairs.append(_score_pair(cross_a, cross_b, same_device=False))
+
+        scored_pairs.append(_score_pair(c, d, same_device=False))
+
+    return scored_pairs
+
+
+def _as_metric_inputs(
+    pairs: List[Dict[str, Any]],
+    score_key: str,
+) -> List[ScoredPair]:
+    return [
+        {
+            "score": float(pair[score_key]),
+            "sameDevice": bool(pair["sameDevice"]),
+            "isAttractor": bool(pair["isAttractor"]),
+        }
+        for pair in pairs
+    ]
+
+
+def demo_large_dataset_comparison():
+    """Demo: large-sample benchmark comparing scalar confidence vs breakdown score."""
+    print("=" * 70)
+    print("DEMO 7: Large Dataset Threshold Comparison")
+    print("=" * 70)
+
+    dataset_size = 2000
+    sessions_per_device = 5
+
+    dataset = generate_dataset(size=dataset_size, sessions_per_device=sessions_per_device)
+    groups: Dict[str, List[LabeledFingerprint]] = {}
+    for item in dataset:
+        groups.setdefault(item.device_label, []).append(item)
+
+    pairs = _generate_comparison_pairs(groups, iterations=2500)
+
+    legacy_results = calculate_metrics(_as_metric_inputs(pairs, "legacyScore"))
+    breakdown_results = calculate_metrics(_as_metric_inputs(pairs, "breakdownScore"))
+
+    threshold_rows: List[Dict[str, Any]] = []
+    for legacy_row, breakdown_row in zip(legacy_results, breakdown_results):
+        threshold_rows.append(
+            {
+                "threshold": legacy_row.threshold,
+                "legacy_f1": legacy_row.f1,
+                "breakdown_f1": breakdown_row.f1,
+                "f1_delta": breakdown_row.f1 - legacy_row.f1,
+                "legacy_eer": legacy_row.eer,
+                "breakdown_eer": breakdown_row.eer,
+                "eer_delta": legacy_row.eer - breakdown_row.eer,
+            }
+        )
+
+    same_pairs = [pair for pair in pairs if pair["sameDevice"]]
+    diff_pairs = [pair for pair in pairs if not pair["sameDevice"]]
+    attractor_impostors = [
+        pair for pair in diff_pairs if pair["isAttractor"]
+    ]
+
+    cohort_rows = []
+    for name, bucket in [
+        ("sameDevice", same_pairs),
+        ("differentDevice", diff_pairs),
+        ("attractorImpostor", attractor_impostors),
+    ]:
+        cohort_rows.append(
+            {
+                "cohort": name,
+                "pairs": len(bucket),
+                "legacy_mean": _average([float(p["legacyScore"]) for p in bucket]),
+                "breakdown_mean": _average([float(p["breakdownScore"]) for p in bucket]),
+                "device_similarity_mean": _average([float(p["deviceSimilarity"]) for p in bucket]),
+                "entropy_mean": _average([float(p["entropyContribution"]) for p in bucket]),
+                "attractor_risk_mean": _average([float(p["attractorRisk"]) for p in bucket]),
+            }
+        )
+
+    cohort_rows.append(
+        {
+            "cohort": "separation(same-diff)",
+            "pairs": "-",
+            "legacy_mean": cohort_rows[0]["legacy_mean"] - cohort_rows[1]["legacy_mean"],
+            "breakdown_mean": cohort_rows[0]["breakdown_mean"] - cohort_rows[1]["breakdown_mean"],
+            "device_similarity_mean": "-",
+            "entropy_mean": "-",
+            "attractor_risk_mean": "-",
+        }
+    )
+
+    best_legacy = max(legacy_results, key=lambda item: item.f1)
+    best_breakdown = max(breakdown_results, key=lambda item: item.f1)
+
+    print(f"Dataset size: {dataset_size} devices x {sessions_per_device} sessions")
+    print(f"Compared pairs: {len(pairs)}")
+    print()
+    print("Cohort Summary (means):")
+    print(_format_table(cohort_rows))
+    print("Threshold Comparison (legacy vs scoring_breakdown overall):")
+    print(_format_table(threshold_rows))
+    print(
+        "Best legacy: "
+        f"threshold={best_legacy.threshold}, f1={best_legacy.f1:.3f}, eer={best_legacy.eer:.3f}"
+    )
+    print(
+        "Best breakdown: "
+        f"threshold={best_breakdown.threshold}, f1={best_breakdown.f1:.3f}, eer={best_breakdown.eer:.3f}"
+    )
+
+
+def demo_basic_comparison():
+    """Demo: Compare two fingerprints from same device"""
+    print("=" * 70)
+    print("DEMO 1: Same Device, Minor Drift")
+    print("=" * 70)
+    
+    # Generate base fingerprint
+    base = create_base_fingerprint(12345)
+    
+    # Create slightly mutated version (low drift)
+    mutated = mutate(base, "low")
+    
+    # Decompose the comparison
+    breakdown = decompose_confidence(base, mutated, top_n=5)
+    
+    print(format_breakdown(breakdown))
+
+
+def demo_cross_browser():
+    """Demo: Same device, different browser"""
+    print("=" * 70)
+    print("DEMO 2: Same Device, High Drift (Cross-Browser Simulation)")
+    print("=" * 70)
+    
+    base = create_base_fingerprint(12345)
+    high_drift = mutate(base, "high")
+    
+    breakdown = decompose_confidence(base, high_drift, top_n=5)
+    
+    print(format_breakdown(breakdown))
+
+
+def demo_different_devices():
+    """Demo: Different devices"""
+    print("=" * 70)
+    print("DEMO 3: Different Devices")
+    print("=" * 70)
+    
+    device_a = create_base_fingerprint(11111)
+    device_b = create_base_fingerprint(22222)
+    
+    breakdown = decompose_confidence(device_a, device_b, top_n=5)
+    
+    print(format_breakdown(breakdown))
+
+
+def demo_evidence_richness():
+    """Demo: Evidence richness calculation"""
+    print("=" * 70)
+    print("DEMO 4: Evidence Richness")
+    print("=" * 70)
+    
+    rich_fp = create_base_fingerprint(12345)
+    
+    # Create sparse fingerprint (missing fields)
+    sparse_fp = {
+        "userAgent": rich_fp["userAgent"],
+        "platform": rich_fp["platform"],
+        "timezone": "America/New_York",
+    }
+    
+    rich_score = calculate_evidence_richness(rich_fp)
+    sparse_score = calculate_evidence_richness(sparse_fp)
+    
+    print(f"Rich fingerprint evidence score: {rich_score:.1f}/100")
+    print(f"Sparse fingerprint evidence score: {sparse_score:.1f}/100")
+    print()
+    
+    # Compare them
+    breakdown = decompose_confidence(rich_fp, sparse_fp, top_n=5)
+    print(format_breakdown(breakdown))
+
+
+def demo_attractor_risk():
+    """Demo: Attractor risk calculation"""
+    print("=" * 70)
+    print("DEMO 5: Attractor Risk Detection")
+    print("=" * 70)
+    
+    # Generic Windows + Chrome fingerprint (high attractor risk)
+    generic_fp = {
+        "platform": "Win32",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "deviceMemory": 8,
+        "hardwareConcurrency": 8,
+        "language": "en-US",
+        "timezone": "America/New_York",
+        "fonts": ["Arial", "Times New Roman"],  # Very few fonts
+    }
+    
+    # Unique fingerprint (low attractor risk)
+    unique_fp = create_base_fingerprint(99999)
+    
+    generic_risk = calculate_attractor_risk(generic_fp)
+    unique_risk = calculate_attractor_risk(unique_fp)
+    
+    print(f"Generic fingerprint attractor risk: {generic_risk:.1f}/100")
+    print(f"Unique fingerprint attractor risk: {unique_risk:.1f}/100")
+    print()
+
+
+def demo_dataset_analysis():
+    """Demo: Analyze a small dataset"""
+    print("=" * 70)
+    print("DEMO 6: Dataset Analysis")
+    print("=" * 70)
+    
+    # Generate small dataset
+    dataset = generate_dataset(size=5, sessions_per_device=2)
+    
+    # Compare first two sessions of same device
+    device_sessions = {}
+    for item in dataset:
+        device_sessions.setdefault(item.device_label, []).append(item)
+    
+    for device_id, sessions in list(device_sessions.items())[:2]:
+        if len(sessions) >= 2:
+            print(f"\n--- Device: {device_id[:12]}... ---")
+            print(f"Is Attractor: {sessions[0].is_attractor}")
+            
+            breakdown = decompose_confidence(
+                sessions[0].data,
+                sessions[1].data,
+                top_n=3
+            )
+            
+            print(f"Overall Confidence: {breakdown.overall_confidence:.1f}/100")
+            print(f"Device Similarity: {breakdown.device_similarity:.1f}/100")
+            print(f"Entropy Contribution: {breakdown.entropy_contribution:.1f}/100")
+            print(f"Attractor Risk: {breakdown.attractor_risk:.1f}/100")
+
+
+def main():
+    """Run all demos"""
+    demo_basic_comparison()
+    print("\n\n")
+    
+    demo_cross_browser()
+    print("\n\n")
+    
+    demo_different_devices()
+    print("\n\n")
+    
+    demo_evidence_richness()
+    print("\n\n")
+    
+    demo_attractor_risk()
+    print("\n\n")
+    
+    demo_dataset_analysis()
+    print("\n\n")
+
+    demo_large_dataset_comparison()
+
+
+if __name__ == "__main__":
+    main()
