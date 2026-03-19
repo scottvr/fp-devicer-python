@@ -2,6 +2,41 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
+from pathlib import Path
+import sys
+
+try:
+    from devicer.libs.confidence import (
+        ENTROPY_FIELDS,
+        FAMILY_LOCALE,
+        FAMILY_MISC,
+        FAMILY_NAMES,
+        FAMILY_RENDERING,
+        FAMILY_SOFTWARE,
+        FAMILY_STRUCTURAL,
+        PROFILE_FIELD_WEIGHTS,
+        STRUCTURAL_FIELDS,
+        calculate_confidence,
+        calculate_confidence_breakdown as lib_calculate_confidence_breakdown,
+    )
+except ModuleNotFoundError:
+    # Allows running this script directly from `src/devicer/benchmarks/`.
+    src_root = Path(__file__).resolve().parents[2]
+    if str(src_root) not in sys.path:
+        sys.path.insert(0, str(src_root))
+    from devicer.libs.confidence import (
+        ENTROPY_FIELDS,
+        FAMILY_LOCALE,
+        FAMILY_MISC,
+        FAMILY_NAMES,
+        FAMILY_RENDERING,
+        FAMILY_SOFTWARE,
+        FAMILY_STRUCTURAL,
+        PROFILE_FIELD_WEIGHTS,
+        STRUCTURAL_FIELDS,
+        calculate_confidence,
+        calculate_confidence_breakdown as lib_calculate_confidence_breakdown,
+    )
 
 
 @dataclass(frozen=True)
@@ -52,134 +87,13 @@ class ScoreBreakdown:
     family_effective_scores: Dict[str, float] = field(default_factory=dict)
 
 
-# Field importance weights for family-level scoring and explainability.
-FIELD_WEIGHTS = {
-    # Rendering entropy family
-    "canvas": 0.10,
-    "webgl": 0.0875,
-    "audio": 0.0625,
-
-    # Structural family
-    "screen.width": 0.10,
-    "screen.height": 0.10,
-    "screen.colorDepth": 0.04,
-    "screen.pixelDepth": 0.03,
-    "hardwareConcurrency": 0.06,
-    "deviceMemory": 0.05,
-
-    # Browser/software family
-    "fonts": 0.06,
-    "plugins": 0.03,
-    "mimeTypes": 0.02,
-    "platform": 0.04,
-    "userAgent": 0.03,
-    "appVersion": 0.02,
-    "highEntropyValues": 0.04,
-
-    # Locale/context family
-    "timezone": 0.03,
-    "language": 0.02,
-    "languages": 0.02,
-
-    # Everything else gets minimal weight
-    "_default": 0.005,
-}
-
-# Field families
-FAMILY_RENDERING = "rendering"
-FAMILY_STRUCTURAL = "structural"
-FAMILY_SOFTWARE = "software"
-FAMILY_LOCALE = "locale"
-FAMILY_MISC = "misc"
-
-FAMILY_NAMES = [
-    FAMILY_RENDERING,
-    FAMILY_STRUCTURAL,
-    FAMILY_SOFTWARE,
-    FAMILY_LOCALE,
-    FAMILY_MISC,
-]
-
-FAMILY_COVERAGE_INFLUENCE = 0.30
-
-# Profile family weights. `richness` is a profile-level component.
-PROFILE_WEIGHTS = {
-    "same_instance": {
-        FAMILY_RENDERING: 0.35,
-        FAMILY_STRUCTURAL: 0.25,
-        FAMILY_SOFTWARE: 0.25,
-        FAMILY_LOCALE: 0.05,
-        FAMILY_MISC: 0.00,
-        "richness": 0.10,
-    },
-    "same_environment": {
-        FAMILY_RENDERING: 0.25,
-        FAMILY_STRUCTURAL: 0.30,
-        FAMILY_SOFTWARE: 0.25,
-        FAMILY_LOCALE: 0.10,
-        FAMILY_MISC: 0.00,
-        "richness": 0.10,
-    },
-    "same_device": {
-        FAMILY_RENDERING: 0.20,
-        FAMILY_STRUCTURAL: 0.35,
-        FAMILY_SOFTWARE: 0.20,
-        FAMILY_LOCALE: 0.05,
-        FAMILY_MISC: 0.00,
-        "richness": 0.20,
-    },
-    "same_entity": {
-        FAMILY_RENDERING: 0.10,
-        FAMILY_STRUCTURAL: 0.20,
-        FAMILY_SOFTWARE: 0.15,
-        FAMILY_LOCALE: 0.15,
-        FAMILY_MISC: 0.00,
-        "richness": 0.20,
-    },
-}
-
-# Stable fields that shouldn't change much
-STRUCTURAL_FIELDS = {
-    "screen.width", "screen.height", "screen.colorDepth", "screen.pixelDepth",
-    "hardwareConcurrency", "deviceMemory", "platform", "timezone"
-}
-
-# High-entropy fields (canvas, webgl, audio)
-ENTROPY_FIELDS = {"canvas", "webgl", "audio"}
-
-# Attractor patterns (common generic fingerprints)
-ATTRACTOR_PATTERNS = [
-    {"platform": "Win32", "userAgent": "Chrome"},
-    {"platform": "MacIntel", "userAgent": "Safari"},
-    {"platform": "iPhone", "deviceMemory": 8},
-    {"platform": "Linux armv8l", "userAgent": "Chrome"},
-]
+# Reuse the library's profile/family weighting configuration in benchmarks.
+FIELD_WEIGHTS = PROFILE_FIELD_WEIGHTS
 
 
 def get_field_importance_weights() -> Dict[str, float]:
     """Returns the field importance weight map"""
     return FIELD_WEIGHTS.copy()
-
-
-def _get_nested_value(data: Dict[str, Any], path: str) -> Optional[Any]:
-    """Get value from nested dict using dot notation"""
-    keys = path.split(".")
-    current = data
-    for key in keys:
-        if not isinstance(current, dict):
-            return None
-        current = current.get(key)
-        if current is None:
-            return None
-    return current
-
-
-def _set_contains_nested(data: Dict[str, Any], field_set: Set[str]) -> bool:
-    """Check if any field from set exists in nested dict"""
-    for field_path in field_set:
-        if _get_nested_value(data, field_path) is not None:
-            return True
-    return False
 
 
 def _calculate_jaccard_similarity(set_a: Set[Any], set_b: Set[Any]) -> float:
@@ -282,50 +196,6 @@ def _get_field_weight(field_name: str) -> float:
     return FIELD_WEIGHTS.get(field_name, FIELD_WEIGHTS["_default"])
 
 
-def _get_field_family(field_name: str) -> str:
-    """Map a field into a scoring family."""
-    if field_name in ENTROPY_FIELDS:
-        return FAMILY_RENDERING
-    if field_name.startswith("screen.") or field_name in {"hardwareConcurrency", "deviceMemory"}:
-        return FAMILY_STRUCTURAL
-    if field_name in {
-        "fonts",
-        "plugins",
-        "mimeTypes",
-        "platform",
-        "userAgent",
-        "appVersion",
-        "highEntropyValues",
-    }:
-        return FAMILY_SOFTWARE
-    if field_name in {"timezone", "language", "languages"}:
-        return FAMILY_LOCALE
-    return FAMILY_MISC
-
-
-def _weighted_mean(pairs: List[Tuple[float, float]]) -> float:
-    total_weight = sum(weight for _, weight in pairs)
-    if total_weight <= 0:
-        return 0.0
-    return sum(value * weight for value, weight in pairs) / total_weight
-
-
-def _coverage_damped_similarity(similarity: float, coverage: float) -> float:
-    alpha = max(0.0, min(1.0, FAMILY_COVERAGE_INFLUENCE))
-    return similarity * ((1.0 - alpha) + alpha * coverage)
-
-
-def _apply_gentle_attractor_penalty(score: float, attractor_risk: float, evidence_richness: float) -> float:
-    """
-    Dampen score only when risk is high and evidence is sparse.
-    Max penalty is intentionally small.
-    """
-    risk = max(0.0, min(100.0, attractor_risk)) / 100.0
-    richness = max(0.0, min(100.0, evidence_richness)) / 100.0
-    penalty_points = 8.0 * risk * (1.0 - richness)
-    return max(0.0, score - penalty_points)
-
-
 def _flatten_fingerprint(fp: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
     """Flatten nested fingerprint dict into dot-notation keys"""
     result = {}
@@ -345,20 +215,7 @@ def calculate_evidence_richness(fp: Dict[str, Any]) -> float:
     Calculate weighted evidence coverage for a single fingerprint.
     Returns 0-100 score
     """
-    flat = _flatten_fingerprint(fp)
-
-    expected_fields = [field for field in FIELD_WEIGHTS.keys() if field != "_default"]
-    total_weight = sum(FIELD_WEIGHTS[field] for field in expected_fields)
-    if total_weight <= 0:
-        return 0.0
-
-    present_weight = 0.0
-    for field in expected_fields:
-        val = flat.get(field)
-        if val is not None and val != "" and val != []:
-            present_weight += FIELD_WEIGHTS[field]
-
-    return max(0.0, min(100.0, (present_weight / total_weight) * 100.0))
+    return float(lib_calculate_confidence_breakdown(fp, fp).evidence_richness)
 
 
 def calculate_attractor_risk(fp: Dict[str, Any], attractor_pool: Optional[List[Dict[str, Any]]] = None) -> float:
@@ -366,41 +223,8 @@ def calculate_attractor_risk(fp: Dict[str, Any], attractor_pool: Optional[List[D
     Calculate likelihood this is a common/generic fingerprint
     Returns 0-100 risk score (higher = more likely to be attractor)
     """
-    risk_score = 0.0
-    
-    # Check against known attractor patterns
-    for pattern in ATTRACTOR_PATTERNS:
-        matches = all(
-            str(fp.get(key, "")).find(str(val)) >= 0
-            for key, val in pattern.items()
-        )
-        if matches:
-            risk_score += 30.0
-    
-    # Check for generic values
-    generic_markers = {
-        "platform": ["Win32", "MacIntel"],
-        "deviceMemory": [8, 16],
-        "hardwareConcurrency": [4, 8],
-        "language": ["en-US"],
-    }
-    
-    for field, generic_values in generic_markers.items():
-        if fp.get(field) in generic_values:
-            risk_score += 10.0
-    
-    # Low entropy in high-entropy fields is suspicious
-    fonts = fp.get("fonts", [])
-    if isinstance(fonts, list) and len(fonts) < 8:
-        risk_score += 15.0
-    
-    # If attractor pool provided, check similarity to pool
-    if attractor_pool:
-        # This would compare against known attractors
-        # For now, placeholder - could use clustering distance
-        pass
-    
-    return min(100.0, risk_score)
+    del attractor_pool  # Reserved for backwards compatibility in benchmark API.
+    return float(lib_calculate_confidence_breakdown(fp, fp).attractor_risk)
 
 
 def decompose_confidence(
@@ -422,75 +246,44 @@ def decompose_confidence(
     Returns:
         ScoreBreakdown with detailed comparison metrics
     """
+    del attractor_pool  # Reserved for backwards compatibility in benchmark API.
+
+    core = lib_calculate_confidence_breakdown(fp1, fp2, primary_profile=primary_profile)
+
     flat1 = _flatten_fingerprint(fp1)
     flat2 = _flatten_fingerprint(fp2)
-    
-    # Include known weighted fields so "both missing" is modeled as no evidence.
     weighted_fields = set(FIELD_WEIGHTS.keys()) - {"_default"}
     all_fields = (set(flat1.keys()) | set(flat2.keys()) | weighted_fields)
 
-    # Compare each field with missingness-awareness.
     matches: List[FieldMatch] = []
     disagreements: List[FieldMismatch] = []
-
     missing_fields: List[str] = []
-    comparable_fields = 0
-    matching_fields = 0
-
-    one_side_missing_fields = 0
-    both_side_missing_fields = 0
-
     structural_fields_compared = 0
     entropy_fields_compared = 0
-
-    total_weight = 0.0
-    comparable_weight = 0.0
-
-    family_total_weight = {name: 0.0 for name in FAMILY_NAMES}
-    family_comparable_weight = {name: 0.0 for name in FAMILY_NAMES}
-    family_weighted_similarity = {name: 0.0 for name in FAMILY_NAMES}
-
-    structural_pairs: List[Tuple[float, float]] = []
-    entropy_pairs: List[Tuple[float, float]] = []
 
     for field in sorted(all_fields):
         val1 = flat1.get(field)
         val2 = flat2.get(field)
-
         weight = _get_field_weight(field)
-        family = _get_field_family(field)
-        family_total_weight[family] += weight
-        total_weight += weight
 
         if val1 is None and val2 is None:
-            both_side_missing_fields += 1
             continue
 
         if val1 is None or val2 is None:
-            one_side_missing_fields += 1
             if val1 is None:
                 missing_fields.append(f"{field} (missing in fp1)")
             else:
                 missing_fields.append(f"{field} (missing in fp2)")
             continue
 
-        comparable_fields += 1
-        comparable_weight += weight
-        family_comparable_weight[family] += weight
-
         similarity, str1, str2 = _compare_field(val1, val2)
-        family_weighted_similarity[family] += similarity * weight
 
         if field in STRUCTURAL_FIELDS:
             structural_fields_compared += 1
-            structural_pairs.append((similarity, weight))
-
         if field in ENTROPY_FIELDS:
             entropy_fields_compared += 1
-            entropy_pairs.append((similarity, weight))
 
         if similarity >= 90:
-            matching_fields += 1
             matches.append(FieldMatch(
                 field_name=field,
                 similarity=similarity,
@@ -509,76 +302,19 @@ def decompose_confidence(
                 penalty=(100 - similarity) * weight
             ))
 
-    # Family similarity / coverage / effective score.
-    family_similarities: Dict[str, float] = {}
-    family_coverages: Dict[str, float] = {}
-    family_effective_scores: Dict[str, float] = {}
-
-    for family in FAMILY_NAMES:
-        total_family_weight = family_total_weight[family]
-        comparable_family_weight = family_comparable_weight[family]
-
-        similarity = (
-            family_weighted_similarity[family] / comparable_family_weight
-            if comparable_family_weight > 0
-            else 0.0
-        )
-        coverage = (
-            comparable_family_weight / total_family_weight
-            if total_family_weight > 0
-            else 0.0
-        )
-        effective = _coverage_damped_similarity(similarity, coverage)
-
-        family_similarities[family] = similarity
-        family_coverages[family] = coverage
-        family_effective_scores[family] = effective
-
-    # Missingness-aware evidence richness is based on comparable weight coverage.
-    evidence_richness = (comparable_weight / total_weight * 100.0) if total_weight > 0 else 0.0
-
-    field_agreement = (matching_fields / comparable_fields * 100) if comparable_fields > 0 else 0.0
-
-    structural_stability = _weighted_mean(structural_pairs)
-    entropy_contribution = _weighted_mean(entropy_pairs)
-
-    # Core fingerprint similarity as family-first aggregate (without richness modifier).
-    device_similarity = _weighted_mean(
-        [
-            (family_effective_scores[FAMILY_RENDERING], 0.30),
-            (family_effective_scores[FAMILY_STRUCTURAL], 0.45),
-            (family_effective_scores[FAMILY_SOFTWARE], 0.20),
-            (family_effective_scores[FAMILY_LOCALE], 0.05),
-        ]
-    )
-
-    attractor_risk = (
-        calculate_attractor_risk(fp1, attractor_pool) +
-        calculate_attractor_risk(fp2, attractor_pool)
-    ) / 2.0
-
-    # Profile scores
-    profile_scores: Dict[str, float] = {}
-    for profile_name, weights in PROFILE_WEIGHTS.items():
-        pairs: List[Tuple[float, float]] = []
-        for family in FAMILY_NAMES:
-            family_weight = weights.get(family, 0.0)
-            if family_weight > 0:
-                pairs.append((family_effective_scores[family], family_weight))
-        richness_weight = weights.get("richness", 0.0)
-        if richness_weight > 0:
-            pairs.append((evidence_richness, richness_weight))
-
-        profile_raw = _weighted_mean(pairs)
-        profile_scores[profile_name] = _apply_gentle_attractor_penalty(
-            profile_raw,
-            attractor_risk,
-            evidence_richness,
-        )
-
-    if primary_profile not in profile_scores:
-        primary_profile = "same_device"
-    overall = profile_scores[primary_profile]
+    family_similarities = {
+        family: float(family_score.similarity)
+        for family, family_score in core.family_scores.items()
+    }
+    family_coverages = {
+        family: float(family_score.coverage) / 100.0
+        for family, family_score in core.family_scores.items()
+    }
+    family_effective_scores = {
+        family: float(family_score.effective)
+        for family, family_score in core.family_scores.items()
+    }
+    profile_scores = {name: float(score) for name, score in core.profile_scores.items()}
 
     # Sort matches by contribution (highest first)
     matches.sort(key=lambda m: m.contribution, reverse=True)
@@ -589,21 +325,21 @@ def decompose_confidence(
     top_disagreements = disagreements[:top_n]
 
     return ScoreBreakdown(
-        device_similarity=device_similarity,
-        evidence_richness=evidence_richness,
-        field_agreement=field_agreement,
-        structural_stability=structural_stability,
-        entropy_contribution=entropy_contribution,
-        attractor_risk=attractor_risk,
+        device_similarity=float(core.device_similarity),
+        evidence_richness=float(core.evidence_richness),
+        field_agreement=float(core.field_agreement),
+        structural_stability=float(core.structural_stability),
+        entropy_contribution=float(core.entropy_contribution),
+        attractor_risk=float(core.attractor_risk),
         top_matches=top_matches,
         top_disagreements=top_disagreements,
         missing_fields=missing_fields,
-        overall_confidence=overall,
-        total_fields_compared=comparable_fields,
+        overall_confidence=float(core.overall_confidence),
+        total_fields_compared=int(core.total_fields_compared),
         structural_fields_compared=structural_fields_compared,
         entropy_fields_compared=entropy_fields_compared,
-        one_side_missing_fields=one_side_missing_fields,
-        both_side_missing_fields=both_side_missing_fields,
+        one_side_missing_fields=int(core.one_side_missing_fields),
+        both_side_missing_fields=int(core.both_side_missing_fields),
         profile_scores=profile_scores,
         family_similarities=family_similarities,
         family_coverages=family_coverages,
@@ -690,22 +426,8 @@ def format_breakdown(breakdown: ScoreBreakdown) -> str:
 
 #### DEMO
 
-from typing import Any, Dict, List
-
 from data_generator import LabeledFingerprint, generate_dataset, mutate, create_base_fingerprint
 from metrics import ScoredPair, calculate_metrics, calculate_true_eer
-
-try:
-    from devicer.libs.confidence import calculate_confidence
-except ModuleNotFoundError:
-    # Allows running this script directly from `src/devicer/benchmarks/`.
-    # get rid of this eventually by adding scripts stubs to   pyproject.toml 
-    from pathlib import Path
-    import sys
-    src_root = Path(__file__).resolve().parents[2]
-    if str(src_root) not in sys.path:
-        sys.path.insert(0, str(src_root))
-    from devicer.libs.confidence import calculate_confidence
 
 
 def _format_table(data: List[Dict[str, Any]]) -> str:
