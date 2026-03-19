@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .hashing import canonicalized_stringify, compare_hashes, get_hash
@@ -110,6 +110,8 @@ PROFILE_FAMILY_WEIGHTS: Dict[str, Dict[str, float]] = {
 }
 
 FAMILY_COVERAGE_INFLUENCE = 0.30
+DEFAULT_DECISION_THRESHOLD = 65.0
+DEFAULT_UNCERTAINTY_BAND = 8.0
 
 STRUCTURAL_FIELDS = {
     "screen.width",
@@ -281,8 +283,8 @@ def _calculate_attractor_risk(fp: Dict[str, Any]) -> float:
         "hardwareConcurrency": [4, 8],
         "language": ["en-US"],
     }
-    for field, generic_values in generic_markers.items():
-        if fp.get(field) in generic_values:
+    for field_name, generic_values in generic_markers.items():
+        if fp.get(field_name) in generic_values:
             risk_score += 10.0
 
     fonts = fp.get("fonts", [])
@@ -290,6 +292,309 @@ def _calculate_attractor_risk(fp: Dict[str, Any]) -> float:
         risk_score += 15.0
 
     return _clamp_0_100(risk_score)
+
+
+def _compute_commonness_and_flags(
+    attractor_risk: float,
+    evidence_richness: float,
+    entropy_contribution: float,
+    family_similarities: Dict[str, float],
+    family_coverages: Dict[str, float],
+) -> Tuple[float, float, List[str]]:
+    """
+    Produce a pair-level commonness/distinctiveness estimate.
+
+    Commonness is intentionally narrow:
+    standardized/default/commodity profile likelihood, not generic uncertainty.
+    """
+    rendering_similarity = family_similarities.get(FAMILY_RENDERING, 0.0)
+    rendering_coverage = family_coverages.get(FAMILY_RENDERING, 0.0) * 100.0
+    software_similarity = family_similarities.get(FAMILY_SOFTWARE, 0.0)
+    locale_similarity = family_similarities.get(FAMILY_LOCALE, 0.0)
+
+    standardized_entropy = rendering_similarity * (rendering_coverage / 100.0)
+    software_locale_genericness = _clamp_0_100((software_similarity * 0.6) + (locale_similarity * 0.4))
+
+    commonness = (
+        0.70 * attractor_risk
+        + 0.20 * standardized_entropy
+        + 0.10 * software_locale_genericness
+    )
+
+    flags: List[str] = []
+    if attractor_risk >= 55:
+        flags.append("high_commonness_profile")
+    if standardized_entropy >= 82 and entropy_contribution >= 75:
+        flags.append("entropy_standardized")
+    if evidence_richness >= 75 and commonness >= 55:
+        flags.append("rich_but_common")
+    if software_locale_genericness >= 88:
+        flags.append("generic_software_locale")
+
+    if "high_commonness_profile" in flags and "entropy_standardized" in flags:
+        commonness += 10.0
+    if "rich_but_common" in flags:
+        commonness += 5.0
+
+    commonness = _clamp_0_100(commonness)
+    distinctiveness = 100.0 - commonness
+    return commonness, distinctiveness, flags
+
+
+def _compute_insufficiency_risk_and_flags(
+    evidence_richness: float,
+    comparable_field_count: int,
+    family_coverages: Dict[str, float],
+) -> Tuple[float, List[str]]:
+    """
+    Compute 0-1 insufficiency/sparsity risk from missing coverage and low richness.
+    """
+    rendering_cov = _clamp01(family_coverages.get(FAMILY_RENDERING, 0.0))
+    structural_cov = _clamp01(family_coverages.get(FAMILY_STRUCTURAL, 0.0))
+    software_cov = _clamp01(family_coverages.get(FAMILY_SOFTWARE, 0.0))
+    locale_cov = _clamp01(family_coverages.get(FAMILY_LOCALE, 0.0))
+
+    richness_shortfall = _clamp01((74.0 - evidence_richness) / 40.0)
+    comparable_shortfall = _clamp01((14.0 - float(comparable_field_count)) / 9.0)
+    structural_absence = _clamp01((0.55 - structural_cov) / 0.55)
+    rendering_absence = _clamp01((0.40 - rendering_cov) / 0.40)
+    software_absence = _clamp01((0.50 - software_cov) / 0.50)
+    key_family_absence = (
+        0.45 * structural_absence
+        + 0.40 * rendering_absence
+        + 0.15 * software_absence
+    )
+    weak_context = _clamp01((0.45 - locale_cov) / 0.45)
+
+    insufficiency_risk = (
+        0.45 * richness_shortfall
+        + 0.25 * comparable_shortfall
+        + 0.20 * key_family_absence
+        + 0.10 * weak_context
+    )
+
+    flags: List[str] = []
+    if evidence_richness < 65:
+        flags.append("insufficient_evidence")
+    if comparable_field_count < 14:
+        flags.append("low_comparable_fields")
+    if structural_cov < 0.55 or rendering_cov < 0.45 or software_cov < 0.45:
+        flags.append("missing_key_families")
+    if rendering_cov < 0.20:
+        flags.append("entropy_family_absent")
+    if structural_cov < 0.30:
+        flags.append("structural_family_absent")
+    if software_cov < 0.35:
+        flags.append("thin_software_family")
+    if (
+        evidence_richness < 62
+        and comparable_field_count < 13
+        and (rendering_cov < 0.25 or software_cov < 0.40)
+    ):
+        flags.append("sparse_observation")
+    if (
+        evidence_richness < 58
+        and comparable_field_count < 12
+        and (rendering_cov < 0.25 or structural_cov < 0.35)
+    ):
+        flags.append("too_partial_for_identity")
+    if (
+        evidence_richness < 45
+        and comparable_field_count < 9
+        and (rendering_cov < 0.18 or structural_cov < 0.25)
+    ):
+        flags.append("too_incomplete_for_identity")
+
+    if "low_comparable_fields" in flags:
+        insufficiency_risk += 0.12
+    if "missing_key_families" in flags:
+        insufficiency_risk += 0.10
+    if "entropy_family_absent" in flags:
+        insufficiency_risk += 0.15
+    if "structural_family_absent" in flags:
+        insufficiency_risk += 0.12
+    if "thin_software_family" in flags:
+        insufficiency_risk += 0.08
+    if "sparse_observation" in flags:
+        insufficiency_risk += 0.12
+    if "too_partial_for_identity" in flags:
+        insufficiency_risk += 0.18
+    if "too_incomplete_for_identity" in flags:
+        insufficiency_risk += 0.20
+
+    return _clamp01(insufficiency_risk), flags
+
+
+def _compute_collision_risk(
+    commonness_score: float,
+    distinctiveness_score: float,
+    evidence_richness: float,
+    policy_flags: List[str],
+) -> float:
+    """
+    Compute 0-1 collision risk used by trust adjustment and collision caps.
+
+    Design goals:
+    - commonness starts biting around 50 and becomes strong by ~75
+    - risk rises mostly in clearly collision-prone combinations
+    - policy flags can push risk into cap territory
+    """
+    commonness_linear = _clamp01((commonness_score - 50.0) / 25.0)
+    commonness_factor = commonness_linear ** 2
+
+    low_distinctiveness_linear = _clamp01((50.0 - distinctiveness_score) / 25.0)
+    low_distinctiveness = low_distinctiveness_linear ** 2
+
+    richness_factor = _clamp01((evidence_richness - 70.0) / 20.0)
+
+    collision_risk = (
+        0.45 * commonness_factor
+        + 0.35 * low_distinctiveness
+        + 0.20 * richness_factor
+    )
+
+    if "high_commonness_profile" in policy_flags:
+        collision_risk += 0.15
+    if "entropy_standardized" in policy_flags:
+        collision_risk += 0.20
+    if "rich_but_common" in policy_flags:
+        collision_risk += 0.15
+
+    return _clamp01(collision_risk)
+
+
+def _apply_trust_adjustment_to_profiles(
+    raw_profile_scores: Dict[str, float],
+    collision_risk: float,
+    insufficiency_risk: float,
+) -> Dict[str, float]:
+    """
+    Convert raw profile similarity into trust-adjusted identity confidence.
+    """
+    adjusted_scores: Dict[str, float] = {}
+    collision = _clamp01(collision_risk)
+    insufficiency = _clamp01(insufficiency_risk)
+
+    profile_collision_penalty_strength = {
+        "same_instance": 0.30,
+        "same_environment": 0.36,
+        "same_device": 0.44,
+        "same_entity": 0.58,
+    }
+
+    profile_uncertainty_pull_strength = {
+        "same_instance": 0.60,
+        "same_environment": 0.72,
+        "same_device": 0.84,
+        "same_entity": 0.95,
+    }
+    profile_uncertainty_midpoint = {
+        "same_instance": 58.0,
+        "same_environment": 56.0,
+        "same_device": 54.0,
+        "same_entity": 52.0,
+    }
+
+    profile_uncertainty_min_half_band = {
+        "same_instance": 12.0,
+        "same_environment": 10.0,
+        "same_device": 9.0,
+        "same_entity": 8.0,
+    }
+    profile_uncertainty_max_half_band = {
+        "same_instance": 46.0,
+        "same_environment": 42.0,
+        "same_device": 38.0,
+        "same_entity": 34.0,
+    }
+
+    profile_collision_threshold = {
+        "same_instance": 0.90,
+        "same_environment": 0.82,
+        "same_device": 0.74,
+        "same_entity": 0.65,
+    }
+    profile_collision_cap = {
+        "same_instance": 84.0,
+        "same_environment": 78.0,
+        "same_device": 72.0,
+        "same_entity": 64.0,
+    }
+    profile_hard_collision_cap = {
+        "same_instance": 78.0,
+        "same_environment": 72.0,
+        "same_device": 66.0,
+        "same_entity": 58.0,
+    }
+
+    for profile_name, raw_score in raw_profile_scores.items():
+        collision_strength = profile_collision_penalty_strength.get(profile_name, 0.42)
+        collision_effect = collision ** 1.10
+        collision_penalty_fraction = _clamp01(min(0.88, collision_strength * collision_effect))
+        adjusted = raw_score * (1.0 - collision_penalty_fraction)
+
+        collision_threshold = profile_collision_threshold.get(profile_name, 0.75)
+        if collision >= collision_threshold:
+            adjusted = min(adjusted, profile_collision_cap.get(profile_name, 72.0))
+        if collision >= 0.90:
+            adjusted = min(adjusted, profile_hard_collision_cap.get(profile_name, 66.0))
+
+        insufficiency_effect = insufficiency ** 1.15
+        midpoint = profile_uncertainty_midpoint.get(profile_name, 54.0)
+        pull_strength = profile_uncertainty_pull_strength.get(profile_name, 0.84) * insufficiency_effect
+        pull_strength = _clamp01(pull_strength)
+        adjusted = adjusted + (midpoint - adjusted) * pull_strength
+
+        min_half_band = profile_uncertainty_min_half_band.get(profile_name, 9.0)
+        max_half_band = profile_uncertainty_max_half_band.get(profile_name, 38.0)
+        half_band = min_half_band + (max_half_band - min_half_band) * (1.0 - insufficiency_effect)
+        lower = midpoint - half_band
+        upper = midpoint + half_band
+        adjusted = max(lower, min(upper, adjusted))
+
+        adjusted_scores[profile_name] = _clamp_0_100(adjusted)
+
+    return adjusted_scores
+
+
+def _evaluate_uncertainty_policy(
+    final_score: float,
+    insufficiency_risk_score: float,
+    decision_threshold: float,
+    uncertainty_band: float,
+) -> Tuple[bool, str, str, float, List[str]]:
+    """
+    Determine whether the score should be treated as ordinary, low-confidence,
+    uncertain-zone, or abstain-worthy.
+    """
+    insuff = _clamp_0_100(insufficiency_risk_score)
+    threshold = _clamp_0_100(decision_threshold)
+    band = max(0.0, uncertainty_band)
+    distance = abs(final_score - threshold)
+    near = distance <= band
+    near_wide = distance <= (band * 1.5)
+
+    flags: List[str] = []
+    if insuff >= 60.0:
+        flags.append("low_confidence_by_insufficiency")
+    if near and insuff >= 60.0:
+        flags.append("near_threshold_under_insufficiency")
+
+    if insuff >= 92.0:
+        flags.append("abstain_recommended")
+        return True, "abstain", "abstain", distance, flags
+    if insuff >= 75.0 and near_wide:
+        flags.append("review_recommended")
+        return True, "uncertain_zone", "review", distance, flags
+    if insuff >= 60.0 and near:
+        flags.append("challenge_recommended")
+        return True, "uncertain_zone", "challenge", distance, flags
+    if insuff >= 75.0:
+        flags.append("review_recommended")
+        return False, "low_confidence", "review", distance, flags
+    if insuff >= 60.0:
+        return False, "low_confidence", "low_confidence", distance, flags
+    return False, "ordinary", "normal", distance, flags
 
 
 @dataclass(frozen=True)
@@ -316,6 +621,23 @@ class ConfidenceBreakdown:
     total_fields_compared: int
     one_side_missing_fields: int
     both_side_missing_fields: int
+    raw_similarity_score: float = 0.0
+    commonness_score: float = 0.0
+    distinctiveness_score: float = 100.0
+    collision_risk: float = 0.0
+    insufficiency_risk: float = 0.0
+    trust_adjustment: float = 0.0
+    trust_shift: float = 0.0
+    uncertainty_zone: bool = False
+    confidence_label: str = "ordinary"
+    policy_action: str = "normal"
+    decision_threshold: float = DEFAULT_DECISION_THRESHOLD
+    threshold_distance: float = 0.0
+    raw_profile_scores: Dict[str, float] = field(default_factory=dict)
+    policy_flags: List[str] = field(default_factory=list)
+    family_similarities: Dict[str, float] = field(default_factory=dict)
+    family_coverages: Dict[str, float] = field(default_factory=dict)
+    family_effective_scores: Dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -396,6 +718,8 @@ class ConfidenceCalculator:
         data1: FPDataSet,
         data2: FPDataSet,
         primary_profile: str = "same_device",
+        decision_threshold: float = DEFAULT_DECISION_THRESHOLD,
+        uncertainty_band: float = DEFAULT_UNCERTAINTY_BAND,
     ) -> ConfidenceBreakdown:
         if primary_profile not in PROFILE_NAMES:
             primary_profile = "same_device"
@@ -420,12 +744,12 @@ class ConfidenceCalculator:
         family_comparable_weight = {name: 0.0 for name in FAMILY_NAMES}
         family_weighted_similarity = {name: 0.0 for name in FAMILY_NAMES}
 
-        for field in sorted(all_fields):
-            value1 = flat1.get(field)
-            value2 = flat2.get(field)
+        for field_name in sorted(all_fields):
+            value1 = flat1.get(field_name)
+            value2 = flat2.get(field_name)
 
-            weight = self._get_profile_weight(field)
-            family = _get_field_family(field)
+            weight = self._get_profile_weight(field_name)
+            family = _get_field_family(field_name)
             total_weight += weight
             family_total_weight[family] += weight
 
@@ -440,17 +764,19 @@ class ConfidenceCalculator:
             comparable_weight += weight
             family_comparable_weight[family] += weight
 
-            similarity = self._compare_profile_field(field, value1, value2)
+            similarity = self._compare_profile_field(field_name, value1, value2)
             family_weighted_similarity[family] += similarity * weight
 
-            if field in STRUCTURAL_FIELDS:
+            if field_name in STRUCTURAL_FIELDS:
                 structural_pairs.append((similarity, weight))
-            if field in ENTROPY_FIELDS:
+            if field_name in ENTROPY_FIELDS:
                 entropy_pairs.append((similarity, weight))
             if similarity >= 90:
                 matching_fields += 1
 
         family_scores: Dict[str, FamilyScore] = {}
+        family_similarities: Dict[str, float] = {}
+        family_coverages: Dict[str, float] = {}
         family_effective_scores: Dict[str, float] = {}
         for family in FAMILY_NAMES:
             family_total = family_total_weight[family]
@@ -462,6 +788,11 @@ class ConfidenceCalculator:
             )
             coverage = (family_comparable / family_total) if family_total > 0 else 0.0
             effective = _coverage_damped_similarity(similarity, coverage)
+
+            family_similarities[family] = _clamp_0_100(similarity)
+            family_coverages[family] = _clamp01(coverage)
+            family_effective_scores[family] = _clamp_0_100(effective)
+
             family_scores[family] = FamilyScore(
                 similarity=round(_clamp_0_100(similarity), 3),
                 coverage=round(_clamp_0_100(coverage * 100.0), 3),
@@ -469,7 +800,6 @@ class ConfidenceCalculator:
                 comparable_weight=round(family_comparable, 6),
                 total_weight=round(family_total, 6),
             )
-            family_effective_scores[family] = effective
 
         evidence_richness = (comparable_weight / total_weight * 100.0) if total_weight > 0 else 0.0
         field_agreement = (matching_fields / comparable_fields * 100.0) if comparable_fields > 0 else 0.0
@@ -487,8 +817,8 @@ class ConfidenceCalculator:
 
         attractor_risk = (_calculate_attractor_risk(data1) + _calculate_attractor_risk(data2)) / 2.0
 
-        profile_scores: Dict[str, float] = {}
-        for profile, weights in PROFILE_FAMILY_WEIGHTS.items():
+        raw_profile_scores: Dict[str, float] = {}
+        for profile_name, weights in PROFILE_FAMILY_WEIGHTS.items():
             pairs: List[Tuple[float, float]] = []
             for family in FAMILY_NAMES:
                 family_weight = weights.get(family, 0.0)
@@ -497,27 +827,102 @@ class ConfidenceCalculator:
             richness_weight = weights.get("richness", 0.0)
             if richness_weight > 0:
                 pairs.append((evidence_richness, richness_weight))
-            raw_score = _weighted_mean(pairs)
-            profile_scores[profile] = round(
-                _apply_gentle_attractor_penalty(raw_score, attractor_risk, evidence_richness),
-                3,
-            )
+            raw_profile_scores[profile_name] = _weighted_mean(pairs)
 
-        overall_confidence = profile_scores[primary_profile]
+        commonness_score, distinctiveness_score, commonness_flags = _compute_commonness_and_flags(
+            attractor_risk=attractor_risk,
+            evidence_richness=evidence_richness,
+            entropy_contribution=entropy_contribution,
+            family_similarities=family_similarities,
+            family_coverages=family_coverages,
+        )
+        insufficiency_risk, insufficiency_flags = _compute_insufficiency_risk_and_flags(
+            evidence_richness=evidence_richness,
+            comparable_field_count=comparable_fields,
+            family_coverages=family_coverages,
+        )
+
+        policy_flags: List[str] = []
+        for flag in [*commonness_flags, *insufficiency_flags]:
+            if flag not in policy_flags:
+                policy_flags.append(flag)
+
+        collision_risk = _compute_collision_risk(
+            commonness_score=commonness_score,
+            distinctiveness_score=distinctiveness_score,
+            evidence_richness=evidence_richness,
+            policy_flags=commonness_flags,
+        )
+
+        profile_scores = _apply_trust_adjustment_to_profiles(
+            raw_profile_scores=raw_profile_scores,
+            collision_risk=collision_risk,
+            insufficiency_risk=insufficiency_risk,
+        )
+
+        if primary_profile not in profile_scores:
+            primary_profile = "same_device"
+
+        overall = profile_scores[primary_profile]
+        raw_primary = raw_profile_scores.get(primary_profile, overall)
+        trust_shift = overall - raw_primary
+        trust_adjustment = abs(trust_shift)
+
+        uncertainty_zone, confidence_label, policy_action, threshold_distance, uncertainty_flags = (
+            _evaluate_uncertainty_policy(
+                final_score=overall,
+                insufficiency_risk_score=insufficiency_risk * 100.0,
+                decision_threshold=decision_threshold,
+                uncertainty_band=uncertainty_band,
+            )
+        )
+        for flag in uncertainty_flags:
+            if flag not in policy_flags:
+                policy_flags.append(flag)
+
         return ConfidenceBreakdown(
             primary_profile=primary_profile,
-            overall_confidence=round(overall_confidence, 3),
-            profile_scores=profile_scores,
+            overall_confidence=round(_clamp_0_100(overall), 3),
+            profile_scores={name: round(_clamp_0_100(score), 3) for name, score in profile_scores.items()},
             family_scores=family_scores,
-            evidence_richness=round(evidence_richness, 3),
-            field_agreement=round(field_agreement, 3),
-            structural_stability=round(structural_stability, 3),
-            entropy_contribution=round(entropy_contribution, 3),
-            attractor_risk=round(attractor_risk, 3),
-            device_similarity=round(device_similarity, 3),
+            evidence_richness=round(_clamp_0_100(evidence_richness), 3),
+            field_agreement=round(_clamp_0_100(field_agreement), 3),
+            structural_stability=round(_clamp_0_100(structural_stability), 3),
+            entropy_contribution=round(_clamp_0_100(entropy_contribution), 3),
+            attractor_risk=round(_clamp_0_100(attractor_risk), 3),
+            device_similarity=round(_clamp_0_100(device_similarity), 3),
             total_fields_compared=comparable_fields,
             one_side_missing_fields=one_side_missing_fields,
             both_side_missing_fields=both_side_missing_fields,
+            raw_similarity_score=round(_clamp_0_100(raw_primary), 3),
+            commonness_score=round(_clamp_0_100(commonness_score), 3),
+            distinctiveness_score=round(_clamp_0_100(distinctiveness_score), 3),
+            collision_risk=round(_clamp_0_100(collision_risk * 100.0), 3),
+            insufficiency_risk=round(_clamp_0_100(insufficiency_risk * 100.0), 3),
+            trust_adjustment=round(_clamp_0_100(trust_adjustment), 3),
+            trust_shift=round(trust_shift, 3),
+            uncertainty_zone=uncertainty_zone,
+            confidence_label=confidence_label,
+            policy_action=policy_action,
+            decision_threshold=round(_clamp_0_100(decision_threshold), 3),
+            threshold_distance=round(max(0.0, threshold_distance), 3),
+            raw_profile_scores={
+                name: round(_clamp_0_100(score), 3)
+                for name, score in raw_profile_scores.items()
+            },
+            policy_flags=policy_flags,
+            family_similarities={
+                name: round(_clamp_0_100(score), 3)
+                for name, score in family_similarities.items()
+            },
+            family_coverages={
+                name: round(_clamp01(score), 6)
+                for name, score in family_coverages.items()
+            },
+            family_effective_scores={
+                name: round(_clamp_0_100(score), 3)
+                for name, score in family_effective_scores.items()
+            },
         )
 
     def calculate_profile_confidence(
@@ -565,9 +970,13 @@ def calculate_confidence_breakdown(
     data1: FPDataSet,
     data2: FPDataSet,
     primary_profile: str = "same_device",
+    decision_threshold: float = DEFAULT_DECISION_THRESHOLD,
+    uncertainty_band: float = DEFAULT_UNCERTAINTY_BAND,
 ) -> ConfidenceBreakdown:
     return create_confidence_calculator().calculate_confidence_breakdown(
         data1,
         data2,
         primary_profile=primary_profile,
+        decision_threshold=decision_threshold,
+        uncertainty_band=uncertainty_band,
     )

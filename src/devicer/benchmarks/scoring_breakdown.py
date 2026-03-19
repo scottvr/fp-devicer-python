@@ -14,6 +14,8 @@ try:
         FAMILY_RENDERING,
         FAMILY_SOFTWARE,
         FAMILY_STRUCTURAL,
+        DEFAULT_DECISION_THRESHOLD,
+        DEFAULT_UNCERTAINTY_BAND,
         PROFILE_FIELD_WEIGHTS,
         STRUCTURAL_FIELDS,
         calculate_confidence,
@@ -32,6 +34,8 @@ except ModuleNotFoundError:
         FAMILY_RENDERING,
         FAMILY_SOFTWARE,
         FAMILY_STRUCTURAL,
+        DEFAULT_DECISION_THRESHOLD,
+        DEFAULT_UNCERTAINTY_BAND,
         PROFILE_FIELD_WEIGHTS,
         STRUCTURAL_FIELDS,
         calculate_confidence,
@@ -65,6 +69,18 @@ class FieldMismatch:
 class ScoreBreakdown:
     """Multi-dimensional fingerprint comparison breakdown"""
     device_similarity: float  # 0-100: Core fingerprint match strength
+    raw_similarity_score: float  # 0-100: Profile score before trust/commonness adjustment
+    commonness_score: float  # 0-100: Higher means more generic/common fingerprint
+    distinctiveness_score: float  # 0-100: Higher means more unique fingerprint evidence
+    collision_risk: float  # 0-100: Estimated collision-prone risk used for trust adjustment
+    insufficiency_risk: float  # 0-100: Evidence insufficiency/sparsity risk
+    trust_adjustment: float  # absolute trust-layer shift magnitude in points
+    trust_shift: float  # signed trust-layer shift (adjusted - raw)
+    uncertainty_zone: bool  # True when score should not be treated as ordinary confidence
+    confidence_label: str  # ordinary | low_confidence | uncertain_zone | abstain
+    policy_action: str  # normal | low_confidence | challenge | review | abstain
+    decision_threshold: float  # threshold used for uncertainty policy checks
+    threshold_distance: float  # abs(final - decision_threshold)
     evidence_richness: float  # 0-100: How much data is present vs missing
     field_agreement: float  # 0-100: Percentage of comparable fields that match
     structural_stability: float  # 0-100: Agreement on stable fields (screen, hardware)
@@ -82,6 +98,8 @@ class ScoreBreakdown:
     one_side_missing_fields: int = 0
     both_side_missing_fields: int = 0
     profile_scores: Dict[str, float] = field(default_factory=dict)
+    raw_profile_scores: Dict[str, float] = field(default_factory=dict)
+    policy_flags: List[str] = field(default_factory=list)
     family_similarities: Dict[str, float] = field(default_factory=dict)
     family_coverages: Dict[str, float] = field(default_factory=dict)
     family_effective_scores: Dict[str, float] = field(default_factory=dict)
@@ -233,6 +251,8 @@ def decompose_confidence(
     attractor_pool: Optional[List[Dict[str, Any]]] = None,
     top_n: int = 5,
     primary_profile: str = "same_device",
+    decision_threshold: float = DEFAULT_DECISION_THRESHOLD,
+    uncertainty_band: float = DEFAULT_UNCERTAINTY_BAND,
 ) -> ScoreBreakdown:
     """
     Decompose fingerprint comparison into multi-dimensional scores
@@ -248,7 +268,13 @@ def decompose_confidence(
     """
     del attractor_pool  # Reserved for backwards compatibility in benchmark API.
 
-    core = lib_calculate_confidence_breakdown(fp1, fp2, primary_profile=primary_profile)
+    core = lib_calculate_confidence_breakdown(
+        fp1,
+        fp2,
+        primary_profile=primary_profile,
+        decision_threshold=decision_threshold,
+        uncertainty_band=uncertainty_band,
+    )
 
     flat1 = _flatten_fingerprint(fp1)
     flat2 = _flatten_fingerprint(fp2)
@@ -302,19 +328,32 @@ def decompose_confidence(
                 penalty=(100 - similarity) * weight
             ))
 
-    family_similarities = {
-        family: float(family_score.similarity)
-        for family, family_score in core.family_scores.items()
-    }
-    family_coverages = {
-        family: float(family_score.coverage) / 100.0
-        for family, family_score in core.family_scores.items()
-    }
-    family_effective_scores = {
-        family: float(family_score.effective)
-        for family, family_score in core.family_scores.items()
-    }
+    family_similarities = (
+        {name: float(value) for name, value in core.family_similarities.items()}
+        if core.family_similarities
+        else {
+            family: float(family_score.similarity)
+            for family, family_score in core.family_scores.items()
+        }
+    )
+    family_coverages = (
+        {name: float(value) for name, value in core.family_coverages.items()}
+        if core.family_coverages
+        else {
+            family: float(family_score.coverage) / 100.0
+            for family, family_score in core.family_scores.items()
+        }
+    )
+    family_effective_scores = (
+        {name: float(value) for name, value in core.family_effective_scores.items()}
+        if core.family_effective_scores
+        else {
+            family: float(family_score.effective)
+            for family, family_score in core.family_scores.items()
+        }
+    )
     profile_scores = {name: float(score) for name, score in core.profile_scores.items()}
+    raw_profile_scores = {name: float(score) for name, score in core.raw_profile_scores.items()}
 
     # Sort matches by contribution (highest first)
     matches.sort(key=lambda m: m.contribution, reverse=True)
@@ -326,6 +365,18 @@ def decompose_confidence(
 
     return ScoreBreakdown(
         device_similarity=float(core.device_similarity),
+        raw_similarity_score=float(core.raw_similarity_score),
+        commonness_score=float(core.commonness_score),
+        distinctiveness_score=float(core.distinctiveness_score),
+        collision_risk=float(core.collision_risk),
+        insufficiency_risk=float(core.insufficiency_risk),
+        trust_adjustment=float(core.trust_adjustment),
+        trust_shift=float(core.trust_shift),
+        uncertainty_zone=bool(core.uncertainty_zone),
+        confidence_label=str(core.confidence_label),
+        policy_action=str(core.policy_action),
+        decision_threshold=float(core.decision_threshold),
+        threshold_distance=float(core.threshold_distance),
         evidence_richness=float(core.evidence_richness),
         field_agreement=float(core.field_agreement),
         structural_stability=float(core.structural_stability),
@@ -341,6 +392,8 @@ def decompose_confidence(
         one_side_missing_fields=int(core.one_side_missing_fields),
         both_side_missing_fields=int(core.both_side_missing_fields),
         profile_scores=profile_scores,
+        raw_profile_scores=raw_profile_scores,
+        policy_flags=list(core.policy_flags),
         family_similarities=family_similarities,
         family_coverages=family_coverages,
         family_effective_scores=family_effective_scores,
@@ -361,6 +414,21 @@ def format_breakdown(breakdown: ScoreBreakdown) -> str:
         "=== Score Breakdown ===",
         f"Overall Confidence: {breakdown.overall_confidence:.1f}/100",
         "",
+        "Identity Layer:",
+        f"  Raw Similarity:        {breakdown.raw_similarity_score:.1f}/100",
+        f"  Commonness Score:      {breakdown.commonness_score:.1f}/100",
+        f"  Distinctiveness Score: {breakdown.distinctiveness_score:.1f}/100",
+        f"  Collision Risk:        {breakdown.collision_risk:.1f}/100",
+        f"  Insufficiency Risk:    {breakdown.insufficiency_risk:.1f}/100",
+        f"  Trust-Adjusted:        {breakdown.overall_confidence:.1f}/100",
+        f"  Trust Shift:           {breakdown.trust_shift:+.1f}",
+        f"  Trust Adjustment:      {breakdown.trust_adjustment:.1f}",
+        f"  Confidence Label:      {breakdown.confidence_label}",
+        f"  Policy Action:         {breakdown.policy_action}",
+        f"  Uncertainty Zone:      {breakdown.uncertainty_zone}",
+        f"  Decision Threshold:    {breakdown.decision_threshold:.1f}",
+        f"  Threshold Distance:    {breakdown.threshold_distance:.1f}",
+        "",
         "Dimensions:",
         f"  Device Similarity:     {breakdown.device_similarity:.1f}/100",
         f"  Evidence Richness:     {breakdown.evidence_richness:.1f}/100",
@@ -378,7 +446,15 @@ def format_breakdown(breakdown: ScoreBreakdown) -> str:
         for profile_name in ["same_instance", "same_environment", "same_device", "same_entity"]:
             if profile_name in breakdown.profile_scores:
                 label = profile_name.replace("_", " ").title()
-                lines.append(f"  {label:17} {breakdown.profile_scores[profile_name]:.1f}/100")
+                raw_value = breakdown.raw_profile_scores.get(profile_name, breakdown.profile_scores[profile_name])
+                adjusted_value = breakdown.profile_scores[profile_name]
+                lines.append(f"  {label:17} raw={raw_value:5.1f} adjusted={adjusted_value:5.1f}")
+        lines.append("")
+
+    if breakdown.policy_flags:
+        lines.append("Trust Policy Flags:")
+        for flag in breakdown.policy_flags:
+            lines.append(f"  - {flag}")
         lines.append("")
 
     if breakdown.family_effective_scores:

@@ -71,12 +71,26 @@ def test_profile_breakdown_contains_expected_profiles():
     breakdown = calculate_confidence_breakdown(fp_identical, fp_very_similar)
     assert breakdown.primary_profile == "same_device"
     assert breakdown.overall_confidence == breakdown.profile_scores["same_device"]
+    assert breakdown.raw_similarity_score == breakdown.raw_profile_scores["same_device"]
     assert {
         "same_instance",
         "same_environment",
         "same_device",
         "same_entity",
     }.issubset(set(breakdown.profile_scores.keys()))
+    assert {
+        "same_instance",
+        "same_environment",
+        "same_device",
+        "same_entity",
+    }.issubset(set(breakdown.raw_profile_scores.keys()))
+    assert 0 <= breakdown.commonness_score <= 100
+    assert 0 <= breakdown.distinctiveness_score <= 100
+    assert 0 <= breakdown.collision_risk <= 100
+    assert 0 <= breakdown.insufficiency_risk <= 100
+    assert breakdown.confidence_label in {"ordinary", "low_confidence", "uncertain_zone", "abstain"}
+    assert breakdown.policy_action in {"normal", "low_confidence", "challenge", "review", "abstain"}
+    assert isinstance(breakdown.uncertainty_zone, bool)
 
 
 def test_profile_breakdown_tracks_missingness_without_hard_mismatch():
@@ -89,6 +103,37 @@ def test_profile_breakdown_tracks_missingness_without_hard_mismatch():
     assert breakdown.one_side_missing_fields > 0
     assert breakdown.evidence_richness < 100
     assert breakdown.total_fields_compared > 0
+
+
+def test_profile_breakdown_sparse_inputs_raise_insufficiency_risk():
+    sparse = {
+        "userAgent": fp_identical.get("userAgent"),
+        "platform": fp_identical.get("platform"),
+        "timezone": fp_identical.get("timezone"),
+    }
+
+    breakdown = calculate_confidence_breakdown(fp_identical, sparse)
+    assert breakdown.insufficiency_risk >= 50
+    assert breakdown.confidence_label in {"low_confidence", "uncertain_zone", "abstain"}
+    assert breakdown.policy_flags
+    assert (
+        "insufficient_evidence" in breakdown.policy_flags
+        or "missing_key_families" in breakdown.policy_flags
+        or "low_comparable_fields" in breakdown.policy_flags
+    )
+
+
+def test_profile_breakdown_accepts_uncertainty_policy_parameters():
+    breakdown = calculate_confidence_breakdown(
+        fp_identical,
+        fp_similar,
+        primary_profile="same_device",
+        decision_threshold=72.0,
+        uncertainty_band=11.0,
+    )
+
+    assert breakdown.decision_threshold == 72.0
+    assert abs(breakdown.threshold_distance - abs(breakdown.overall_confidence - 72.0)) < 0.01
 
 
 def test_profile_confidence_function_matches_calculate_confidence_profile_mode():
