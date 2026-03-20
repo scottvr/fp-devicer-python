@@ -1,0 +1,3 @@
+- Removed scoring_breakdown code from src/devicer/benchmarks/scoring_breakdown.py as it has been integrated into the main library. [explicit] ([evidence](devicer.release-notes.profile-family.evidence.md#note-3))
+- Ported scoring breakdown computations including commonness/distinctiveness, collision risk, insufficiency risk, trust moderation, and uncertainty policy from benchmarks into amin libraries for improved modularity. [explicit] ([evidence](devicer.release-notes.profile-family.evidence.md#note-1))
+- Fixed output behavior in the scenario_generator component within src. [explicit] ([evidence](devicer.release-notes.profile-family.evidence.md#note-2))
