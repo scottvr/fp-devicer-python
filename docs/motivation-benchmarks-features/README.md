@@ -1,14 +1,14 @@
  ### motivation that lead to all of this stuff
  ### sorry it has taken so long to document
 
-Your project looks well structured and as I mentioned in that rambling text from and uber the other day, it happened to overlap with a few things I have been working on, but for different overall purposes, so I got nerdsniped.
+Your project looks well structured and as I mentioned in that rambling text from an uber the other day, it happened to overlap with a few things I have been working on, but for different overall purposes, so I got nerdsniped.
 
-The one specific thing I wanted to explore (and hopefully, find something useful I could share with you) was that single "confidence score". Addiitonally, the fact that your benchmarks looks so good, :-) I didnt doubt they were real, or think that you were misrepresenting numbers, or anything of that sort, but from experience I know that sometimes the happy path yields great metrics,  but any deviation from the synthetic tests can make everything crumble in unexpected way. Si IU thought it would be fun to create some adversarial test cases to see how your fingerprinter did.
+The one specific thing I wanted to explore (and hopefully, find something useful I could share with you) was the  single "confidence score". Addiitonally, the fact that your benchmarks looked so good. :-) I didnt doubt they were real, or think that you were misrepresenting numbers, or anything of that sort, but from experience I know that sometimes the happy path yields great metrics,  but any deviation from the synthetic tests can make everything crumble in unexpected ways. So I thought it would be fun to create some adversarial test cases to see how your fingerprinter did with then.
 
-Oh, also, I read your whitepaper shortly after I started looking at the code, so that made me really pay attention to what it was doing, because I was reading the paper. That lead to these sorts of thoughts:
+Oh, also, I read your whitepaper shortly after I started looking at the code, so that made me really pay attention to what it was doing, simply because I was reading the paper. That lead to these sorts of thoughts:
 
-- how browser fingerprinting and entity/identity resolution overlaps in ways
-- perhaps evil ways from ad/tracjing companies and all the other companies that harvest so much data about us
+- how browser fingerprinting and entity/identity resolution overlap in ways
+- perhaps evil ways from ad/tracking companies and all the other companies that harvest so much data about us
 - butI tried to steer away from that particular topic; it still informed some of my other later thoughts about what does he want to be, just a finfgerprinter? or might he have the same Entity Resolver thoughts as I do?
 
 But then, seeing it for what it is now,m my mind turned to:
