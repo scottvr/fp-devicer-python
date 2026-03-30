@@ -831,3 +831,9 @@ index 108e400..c01701d 100644
 +if __name__ == "__main__":
 +    main()
 ```
+
+
+---
+
+### Navigation
+[← Previous (Commit 20)](3d41024_test_profile.md) | [Back to Index](./index.md) | [Next (Commit 22) →](7855254_some_realist.md)

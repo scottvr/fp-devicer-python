@@ -706,3 +706,9 @@ index 877d772..108e400 100644
      if breakdown.top_matches:
          lines.append("Top Contributing Matches:")
 ```
+
+
+---
+
+### Navigation
+[← Previous (Commit 19)](619d4ef_add_the_big_.md) | [Back to Index](./index.md) | [Next (Commit 21) →](deac2db_make_scoring.md)

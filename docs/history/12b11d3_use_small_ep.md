@@ -48,3 +48,9 @@ index 230d238..9812996 100644
                  threshold=float(current.threshold),
                  eer=current.far,
 ```
+
+
+---
+
+### Navigation
+[← Previous (Commit 23)](15c8f64_eer_was_not_.md) | [Back to Index](./index.md) | [Next (Commit 25) →](8572151_also_fixed_e.md)

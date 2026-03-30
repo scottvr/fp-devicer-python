@@ -199,3 +199,9 @@ index ef77341..8ecd055 100644
  
  def demo_basic_comparison():
 ```
+
+
+---
+
+### Navigation
+[← Previous (Commit 24)](12b11d3_use_small_ep.md) | [Back to Index](./index.md) | [Next (Commit 26) →](cdc9e0f_commit_accur.md)

@@ -930,3 +930,9 @@ index 0000000..877d772
 +    
 +    return "\n".join(lines)
 ```
+
+
+---
+
+### Navigation
+[← Previous (Commit 18)](9a9f5e6_fix_greedy_l.md) | [Back to Index](./index.md) | [Next (Commit 20) →](3d41024_test_profile.md)

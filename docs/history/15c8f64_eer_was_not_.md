@@ -403,3 +403,9 @@ index 011e685..75f1a75 100644
 +    assert eer.far == 0.2
 +    assert eer.frr == 0.05
 ```
+
+
+---
+
+### Navigation
+[← Previous (Commit 22)](7855254_some_realist.md) | [Back to Index](./index.md) | [Next (Commit 24) →](12b11d3_use_small_ep.md)

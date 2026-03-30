@@ -79,3 +79,9 @@ index 97afa86..c101d13 100644
 -Best threshold: 70 | F1: 1.000 | EER: 0.000
 \ No newline at end of file
 ```
+
+
+---
+
+### Navigation
+[← Previous (Commit 25)](8572151_also_fixed_e.md) | [Back to Index](./index.md) | [Next (Commit 27) →](534d32a_add_insuffic.md)
