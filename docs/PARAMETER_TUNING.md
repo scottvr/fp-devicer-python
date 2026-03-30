@@ -116,10 +116,12 @@ This is where you ask an expert. Or an LLM you trust to play one on TV. But the 
    1. feature similarity
    2. semantic transformaations
    3. policy outputs
+  
+      
    As I've already mentioned a few times now. I think this is it. At least for now.
-   **1** is reasonably solid.
-   **2** is conceptually solid, but the numbers are essentially intuitive guesses
-   **3** is always going to be at least partly hand-tuned
+   - **1** is reasonably solid.
+   - **2** is conceptually solid, but the numbers are essentially intuitive guesses
+   - **3** is always going to be at least partly hand-tuned
 ## So...
 Next actionable step is calibrate **2**. And if 3 remains policy decision and hand-tuning, **2** is the _only_ thing that needs to be done next.
 
