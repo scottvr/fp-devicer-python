@@ -140,6 +140,7 @@ But that's slow and not scalable. THis needs to be automated. There are probably
 - the "uncertainty zone" experiment shows something useful:
     - sparse same-device-> `uncertainty_zone`, `review`.
     - sparse different-device-> `low_confidence`, `reiew`.
+
 This shows that downstream policy has the effect of reducing the load the final scalar value has to bear.
 Which implies that not every number has to be precisely perfect, at least if the policy layer users uncertainy, confidence label, and review routing properly.
 
