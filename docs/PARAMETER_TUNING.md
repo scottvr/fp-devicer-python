@@ -24,9 +24,8 @@ So, if one assumes this is true, the next steps would be to call out that in its
 ### Oh...
 You mentioned a stability variable that you were using to tame your coefficients. I looked at your main branch and see that you have a stability_window_size and average the value for each field
 as you iterate through multiple fingerprints. I found it as ` stabilities[field] = (total / count) if count else 1.0`
-I actually carried this over and you will see it as `structural_stability` in the reports I generated in `benchmarks/` AND... of course I assigned a weight to it too, 
-so we can say how important it is to the overall score. I think this is the inverse of what you were suggesting which was to use that value as a stabilizing coefficient to 
-the weights I am using for the components that are shown in the `breakdown`. This is not the same thing as what I was suggesting ought to be a next step.
+I actually carried this over and you will see it as `structural_stability` (the formula is the same, just worded slightly differently: `structural_stability = _weighted_mean(structural_pairs)` where `_weighted_mean` is exactly what you would expect the function to look like, summing each value * its weight, dividing by total_weight,   
+in the reports I generated in `benchmarks/` AND... of course I assigned a weight to it too; there are family weights applied to component weights, there are what need to be tuned, (not just nultiplied by a moving average to enforce a level of stability) so we can say how important it is to the overall score. I think this is the inverse of what you were suggesting which was to use that value as a stabilizing coefficient to the weights I am using for the components that are shown in the `breakdown`. This is not the same thing as what I was suggesting ought to be a next step, and importantly, I have verified that I did carry your stabilizer variable over (and multiply *it* by an arbitraty weight that determines how much its input effects the final number.)
 
 # What is there
 Before I shared that fork with you I did implement:
