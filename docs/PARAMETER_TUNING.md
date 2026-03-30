@@ -11,7 +11,7 @@ where "confidence" rises and falls before and after, "better" depends a lot on w
 So *I* was satisfied that the shape of what I layed out was correct (or at least not wrong, but I would not call it necessarily "complete") 
 So, if one assumes this is true, the next steps would be to call out that in its current state there are:
 - hand-tuned policy engine (from gut)
-- with many arbitrary contents (from ass)
+- with many arbitrary constants (from ass)
 - the hand-tuning does make it work better than when I started ("better" compared to itself, when I first broke the fields into groups)
 - but its behavior is still anchored in intuition and local examples
 
