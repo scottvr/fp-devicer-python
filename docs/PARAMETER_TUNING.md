@@ -87,7 +87,8 @@ This is where you ask an expert. Or an LLM you trust to play one on TV. But the 
   But to try to give examples of something concrete, from the `scenario_generator` as examples:
   - "collision-risk params should reduce Tor/fleet/default false positives"  
   - "insufficiency params should improve sparse/partial-case semantics"
-  - "profile params should preserve intended ordering and threshold behavior"  "review thresholds should route uncertain cases without wrecking auto-decision"
+  - "profile params should preserve intended ordering and threshold behavior"
+  - "review thresholds should route uncertain cases without wrecking auto-decision"
   - _and you add more stuff here..._
 3. Create some sort of scorecard.
   For each run, track some small-ish set of conclusions from metrics. I don't know how many but I'll list as many as come to mind now:
