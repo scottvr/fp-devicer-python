@@ -1,25 +1,7 @@
 # Project Evolution & Rationale
-This document tracks the development of the project in strict chronological order.
 
 ## Commit Index
 
-* **2025-06-15 13:36:15**: [Initial commit](./2edba6f_Initial_comm.md)
-* **2025-06-15 14:23:29**: [Bug Fix: Avoided double counting fields with nested dictionaries](./d9a6cd1_Bug_Fix_Avoi.md)
-* **2025-06-15 19:48:56**: [Patched minor typo in README.md](./7236eb6_Patched_mino.md)
-* **2025-06-16 09:44:47**: [Updated patch number](./bdd4a13_Updated_patc.md)
-* **2025-06-16 13:01:49**: [Bringing into parity with fp-devicer](./f779bb0_Bringing_int.md)
-* **2025-06-18 13:54:39**: [Fixed bug with data typing in compare_dictionaries](./5cddf47_Fixed_bug_wi.md)
-* **2025-06-18 13:55:07**: [Changed patch number](./c905b57_Changed_patc.md)
-* **2025-06-18 22:43:34**: [Improved algorithm accuracy](./3356940_Improved_alg.md)
-* **2025-06-19 11:35:09**: [Brought back to parity with typescript impl](./4493337_Brought_back.md)
-* **2025-06-28 13:48:32**: [Brought back to parity with new minor version of fp-devicer](./e3aa64f_Brought_back.md)
-* **2025-06-28 13:50:25**: [Updated minor version](./95512c0_Updated_mino.md)
-* **2026-03-11 10:55:21**: [Brought library back into parity with devicer.js - Included newest features](./03e1406_Brought_libr.md)
-* **2026-03-11 11:06:08**: [Added publishing workflow](./8d4c3c8_Added_publis.md)
-* **2026-03-11 11:07:03**: [Added publishing workflow](./91ff298_Added_publis.md)
-* **2026-03-11 11:08:13**: [Added publishing workflow](./37fc99f_Added_publis.md)
-* **2026-03-11 11:12:54**: [Revised tests for GitHub actions workflow](./e3acfd9_Revised_test.md)
-* **2026-03-11 11:15:06**: [Revised tests for GitHub actions workflow](./3a08008_Revised_test.md)
 * **2026-03-19 07:19:07**: [fix greedy loading of benchmark modules, since they have main()'s in them and are intended to be used as CLI. (added lazy loading via getattr in case those exports are really needed so it didn't break something I wasn't testing, but I'd just yank that out. I won't be adding the additional benchmarks to the __init__.py at all.](./9a9f5e6_fix_greedy_l.md)
 * **2026-03-19 08:18:03**: [add the big pairing samples and table for apples-to-apples comparison of the existing confidence metric and the proposed additional scoring metrics](./619d4ef_add_the_big_.md)
 * **2026-03-19 08:50:32**: [test profile/family ideas, and missingness-aware coverage](./3d41024_test_profile.md)
@@ -29,6 +11,6 @@ This document tracks the development of the project in strict chronological orde
 * **2026-03-19 10:16:56**: [use small epsilon instead of 0 for crossings to account for floating point noise](./12b11d3_use_small_ep.md)
 * **2026-03-19 10:18:13**: [also fixed eer in last commit, now adding the new eer and old far/frr columns](./8572151_also_fixed_e.md)
 * **2026-03-19 10:30:11**: [commit accuracy bench out with accurate eer](./cdc9e0f_commit_accur.md)
-* **2026-03-19 11:31:40**: [add insufficiency_risj to breakdown model, narrow commonness semantics, explicit sparsity/insiffiency from low richness + missing families, trust adjustment combined both paths with profile-specific penalty strengths](./534d32a_add_insuffic.md)
+* **2026-03-19 11:31:40**: [add insufficiency_risk to breakdown model, narrow commonness semantics, explicit sparsity/insiffiency from low richness + missing families, trust adjustment combined both paths with profile-specific penalty strengths](./534d32a_add_insuffic.md)
 * **2026-03-19 11:57:04**: [add "uncertainty band"](./737a534_add_uncertai.md)
 * **2026-03-19 15:13:14**: [formatting output md test](./8975ae9_formatting_o.md)
