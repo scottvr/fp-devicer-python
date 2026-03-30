@@ -142,7 +142,7 @@ But that's slow and not scalable. THis needs to be automated. There are probably
     - sparse different-device-> `low_confidence`, `reiew`.
 
 This shows that downstream policy has the effect of reducing the load the final scalar value has to bear.
-Which implies that not every number has to be precisely perfect, at least if the policy layer users uncertainy, confidence label, and review routing properly.
+Which implies that not every number has to be precisely perfect, at least if the policy layer uses uncertainy, confidence label, and review routing properly.
 
 - creat the list of outputs that will be compared. I gave a list of like 10
 - create/adjust policies. These consume the core outputs from above and apply the things like collision penalty, confidence labels, actions (DENY, PERMIT, REVIEW, WHATEVER)
