@@ -63,6 +63,7 @@ These are asking to be tuned in a data-driven fashion. These are the knobs that 
 - collision penalty strengths
 - uncertainty pull strengths
 - exponents
+  
 Bench-tuning applies here.
 ### Structural design choices
 These are less about specific numerical choices, and more conceptual items for architecture decisions.
