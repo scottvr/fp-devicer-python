@@ -97,4 +97,55 @@ Add to your aggregte reporttig:
 - collisions
 
 
-The index into the commentary is in [history/index.md](history/index.md)
+The index into the git commits commentary is in [history/index.md](history/index.md)
+
+A new document on parameter tuning the expanded confidence model that uses commonness, insufficiency, evidence richness, collision risk, structural stability, etc as part of the confidence model (I'll paste the breakdown below) can be found at [PARAMETER_TUNING.md](PARAMETER_TUNING.md)
+
+### Confidence Score Breakdown
+```python
+    return ConfidenceBreakdown(
+            primary_profile=primary_profile,
+            overall_confidence=round(_clamp_0_100(overall), 3),
+            profile_scores={name: round(_clamp_0_100(score), 3) for name, score in profile_scores.items()},
+            family_scores=family_scores,
+            evidence_richness=round(_clamp_0_100(evidence_richness), 3),
+            field_agreement=round(_clamp_0_100(field_agreement), 3),
+            structural_stability=round(_clamp_0_100(structural_stability), 3),
+            entropy_contribution=round(_clamp_0_100(entropy_contribution), 3),
+            attractor_risk=round(_clamp_0_100(attractor_risk), 3),
+            device_similarity=round(_clamp_0_100(device_similarity), 3),
+            total_fields_compared=comparable_fields,
+            one_side_missing_fields=one_side_missing_fields,
+            both_side_missing_fields=both_side_missing_fields,
+            raw_similarity_score=round(_clamp_0_100(raw_primary), 3),
+            commonness_score=round(_clamp_0_100(commonness_score), 3),
+            distinctiveness_score=round(_clamp_0_100(distinctiveness_score), 3),
+            collision_risk=round(_clamp_0_100(collision_risk * 100.0), 3),
+            insufficiency_risk=round(_clamp_0_100(insufficiency_risk * 100.0), 3),
+            trust_adjustment=round(_clamp_0_100(trust_adjustment), 3),
+            trust_shift=round(trust_shift, 3),
+            uncertainty_zone=uncertainty_zone,
+            confidence_label=confidence_label,
+            policy_action=policy_action,
+            decision_threshold=round(_clamp_0_100(decision_threshold), 3),
+            threshold_distance=round(max(0.0, threshold_distance), 3),
+            raw_profile_scores={
+                name: round(_clamp_0_100(score), 3)
+                for name, score in raw_profile_scores.items()
+            },
+            policy_flags=policy_flags,
+            family_similarities={
+                name: round(_clamp_0_100(score), 3)
+                for name, score in family_similarities.items()
+            },
+            family_coverages={
+                name: round(_clamp01(score), 6)
+                for name, score in family_coverages.items()
+            },
+            family_effective_scores={
+                name: round(_clamp_0_100(score), 3)
+                for name, score in family_effective_scores.items()
+            },
+        )
+```
+
