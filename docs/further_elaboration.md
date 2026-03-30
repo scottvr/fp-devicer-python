@@ -87,7 +87,7 @@ Like I said, I'm not a big stats guy, but I read a lot of papers, and initially 
 ## Attractors
 
 I wanted to pay more attention to this, but as I've mentioned, after a quik burst of must-do-now energy, I got a bit paid contract and quickly had to shift gears.
-Planned was demonstrataing the same metrics, but adding a summary for attractor pairs, and one for non-atrractor pairs.  Also, the fact that I woudln't really know what to *do* with that additional data, kept me from feeling very motivcated to go down this route. You might waant to thought.
+Planned was demonstrataing the same metrics, but adding a summary for attractor pairs, and one for non-atrractor pairs.  Also, the fact that I woudln't really know what to *do* with that additional data, kept me from feeling very motivated to go down this route. You might waant to though.
 
 # other improvements to your existing benchmarks.
 
