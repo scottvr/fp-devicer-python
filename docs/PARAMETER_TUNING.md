@@ -3,7 +3,7 @@ So... we briefly discussed that I wanted to draft a proper test plan. I haven't.
 If you have an LLM that you trust to take these thoughts and form them into something more coherent and structured, it's something I suggest maybe you do.
 
 ## GUTS
-I added lots of multiplicitave weights and various gates and thresholds; all of them essentially began as just a gut instinct/intuition after seeing where you had weighted fields, 
+I added lots of multiplicative weights and various gates and thresholds; all of them essentially began as just a gut instinct/intuition after seeing where you had weighted fields, 
 then making barely-better-than-random tweaks to knobs, noticed when results got "better" (from my subjective view against your existing benchmark data. Since there is a curve, with sweet spots,
 where "confidence" rises and falls before and after, "better" depends a lot on what is important to the viewer, which was one motivator for the profiles and grouping by family.
 
