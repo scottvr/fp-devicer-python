@@ -21,6 +21,7 @@ So, if one assumes this is true, the next steps would be to call out that in its
 - the knobs proved well-enough my hypothesis
 - now they need to be turned to the right positions based on actual input and desired output
 
+## Oh...
 You mentioned a stability variable that you were using to tame your coefficients. I looked at your main branch and see that you have a stability_window_size and average the value for each field
 as you iterate through multiple fingerprints. I found it as ` stabilities[field] = (total / count) if count else 1.0`
 I actually carried this over and you will see it as `structural_stability` in the reports I generated in `benchmarks/` AND... of course I assigned a weight to it too, 
