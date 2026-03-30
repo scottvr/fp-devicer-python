@@ -4,7 +4,7 @@
 
 ## Editorial Rationale
 
->  so this might be a little misleading, or at least make it feel like something is missing from being accounted for.  If you scroll to line 400 or so, you will see this also contains the initial commit of the scoring_breakdown itself which  stemmed from me just wanting to see what  role each of the fields in the two structures you "sum and diff" to get the confidence_score. This was in part to answer the question: "85% confidence meansa what? You are 85% confident they are the same? There is an 85% probbability that they are the same? What is this confidence value derived from?"  After decomposition and examination, this is the first iteration of the "wild-ass guess" constants I said were intuittive responses to benchmark numbers, and that they were in need of soe form of paramteter-tuning.
+>  so this might be a little misleading, or at least make it feel like something is missing from being accounted for.  If you scroll to line 400 or so, you will see this also contains the initial commit of the scoring_breakdown itself which  stemmed from me just wanting to see what roles were in and how much each of the fields in the two structures you "sum and diff"  contribute to the final confidence score. This was in part to answer the question: "85% confidence meansa what? You are 85% confident they are the same? There is an 85% probbability that they are the same? What is this confidence value derived from?"  After decomposition and examination, this is the first iteration of the "wild-ass guess" constants I said were intuittive responses to benchmark numbers, and that they were in need of soe form of paramteter-tuning.
 
 ---
 
