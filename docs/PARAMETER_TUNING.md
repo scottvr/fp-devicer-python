@@ -163,7 +163,7 @@ Don't put these in the core library itself.
 
 ## Conclusi8on
 
-I know this is a lot, but... if I was given this project as a work assignment, this is about what I would deliver I think. I'm not a Project Manager, or particulary good planner of anything. I am subject to whum and whimsy, and am easily distracted by shiny objects. Your project served as a shiny object, caused me to want to share ideas with you, some of which I implmented in code so I could feel good about suggesting them. I would have felt bad if I sent you a detailed document *first*, then you acted on it and found the hypothesis to have no merit. So.. IMHO even the incomplete design has proven its worth, but it needs real tuned paramter values to work as well as it could, and my opinion is that doing this now will set your fp-devicer up for success, should you choose to push further forward with it.
+I know this is a lot, but... if I was given this project as a work assignment, this is about what I would deliver I think. I'm not a Project Manager, or particulary good planner of anything. I am subject to whim and whimsy, and am easily distracted by shiny objects. Your project served as a shiny object, caused me to want to share ideas with you, some of which I implmented in code so I could feel good about suggesting them. I would have felt bad if I sent you a detailed document *first*, then you acted on it and found the hypothesis to have no merit. So.. IMHO even the incomplete design has proven its worth, but it needs real tuned paramter values to work as well as it could, and my opinion is that doing this now will set your fp-devicer up for success, should you choose to push further forward with it.
 
 I genuinely hope this is helpful to you.
 
