@@ -21,14 +21,14 @@ So, if one assumes this is true, the next steps would be to call out that in its
 - the knobs proved well-enough my hypothesis
 - now they need to be turned to the right positions based on actual input and desired output
 
-## Oh...
+### Oh...
 You mentioned a stability variable that you were using to tame your coefficients. I looked at your main branch and see that you have a stability_window_size and average the value for each field
 as you iterate through multiple fingerprints. I found it as ` stabilities[field] = (total / count) if count else 1.0`
 I actually carried this over and you will see it as `structural_stability` in the reports I generated in `benchmarks/` AND... of course I assigned a weight to it too, 
 so we can say how important it is to the overall score. I think this is the inverse of what you were suggesting which was to use that value as a stabilizing coefficient to 
 the weights I am using for the components that are shown in the `breakdown`. This is not the same thing as what I was suggesting ought to be a next step.
 
-## What is there
+# What is there
 Before I shared that fork with you I did implement:
 - a non-linear collision ramp
 - stopped punishing "missingness", moderating it instead, toward 'uncertainty'
@@ -56,6 +56,7 @@ So, I said it needs to be "decided". *I* think:
 - `profile_hard_collision_cap`
 - uncertainty-zone boundaries / review policy
 These are partly UX, partly business needs/preferences. How conservative is the end user? How much uncertainty is acceptable for their business case? WHen and how to things get routed for review?
+
 ### Calibration parameters
 These are asking to be tuned in a data-driven fashion. These are the knobs that control:
 - commonness ramp start/end
@@ -66,6 +67,7 @@ These are asking to be tuned in a data-driven fashion. These are the knobs that 
 - exponents
   
 Bench-tuning applies here.
+
 ### Structural design choices
 These are less about specific numerical choices, and more conceptual items for architecture decisions.
 - collision as penalty
@@ -73,12 +75,15 @@ These are less about specific numerical choices, and more conceptual items for a
 - profile-specific scoring
 - family aggregation
 - caps for severe collision classes
+
 ## How?
 I don't really know. I do know more than I did when I started this document. I was planning to just list some things and be done with this in about 10-15 minutes. It has been much 
 longer than that so I have a better feel fow how *I* think I would go about it, but also testing and tuning of this sort is outside of my area of expertise and formal experience, so I hesitate to prosyletize too much, and suggest you take my suggesstions with a grain of salt. *I* think my ideas are great, all the time, for everything, but life has repeatedly showm be to be wrong. WIth that huge disclaimer, here are things I didn't have in the chamber when I started this document:
+
 ### Architecture freeze
 Sure. It isn't perfect. It was a PoC. But.. it's been validated enough now that I say it should stay exactly as it is for the purpose of this phase of arriving at deserved constants, removing all the gut feel numbers.
 So freeze it. And start validating the calibration layer. Systematically.
+
 ### What system?
 This is where you ask an expert. Or an LLM you trust to play one on TV. But the basic steps (with a lot of details to fill in for execution) would be:
 1. classify tunables into small groups.
@@ -123,15 +128,16 @@ This is where you ask an expert. Or an LLM you trust to play one on TV. But the 
    - **1** is reasonably solid.
    - **2** is conceptually solid, but the numbers are essentially intuitive guesses
    - **3** is always going to be at least partly hand-tuned
-## So...
-Next actionable step is calibrate **2**. And if 3 remains policy decision and hand-tuning, **2** is the _only_ thing that needs to be done next.
 
-#### But DON'T
+## So...
+Next actionable step is calibrate **2**. And if **3** remains policy decision and hand-tuning, **2** is the _only_ thing that needs to be done next. This should feel promising to read. But it still will require some time and effort.
+
+### But DON'T
 Change things just because they're arbitrary. This was (and still is, kinda) my instinct, but it should be avoided as it is just spending more time testing the arbitrary or random.
 And also, don't do it because I lie when I call it arbitrary and random. It is better than that. Time was spent tweaking knobs, running another pass; if things improved, keep new value, repeat.
 But that's slow and not scalable. THis needs to be automated. There are probably off-the-shelf ways to do this, but I've never had a need to learn what they are.
 
-## notes dump
+## oddly-placed, unexpected random notes dump
 - the "uncertainty zone" experiment shows something useful:
     - sparse same-device-> `uncertainty_zone`, `review`.
     - sparse different-device-> `low_confidence`, `reiew`.
@@ -142,6 +148,7 @@ Which implies that not every number has to be precisely perfect, at least if the
 - create/adjust policies. These consume the core outputs from above and apply the things like collision penalty, confidence labels, actions (DENY, PERMIT, REVIEW, WHATEVER)
 - prepare benchmark scripts. (generate cases, including adversarial, neative, etc.) There should call the core library code (or benchmark code, if that' the branch used) but not be responsible for the scoring logic themselves, so maybe new wrappers around what we've got now. (just to stay honest and scientific about things.)
 - group the parameter knobvs in sematic bundles as suggested earlier above. This anables the user (you) to  decide things like "we should use the conservative/fraud profile", " we should use a softer review threshold", " we should optimize for ..."
+
 ## A Shape of Things to come
 ```
 ScoringCOnfig:
@@ -162,8 +169,7 @@ ScoringCOnfig:
 - scorecards
 Don't put these in the core library itself.
 
-## Conclusi8on
-
+# Conclusion
 I know this is a lot, but... if I was given this project as a work assignment, this is about what I would deliver I think. I'm not a Project Manager, or particulary good planner of anything. I am subject to whim and whimsy, and am easily distracted by shiny objects. Your project served as a shiny object, caused me to want to share ideas with you, some of which I implmented in code so I could feel good about suggesting them. I would have felt bad if I sent you a detailed document *first*, then you acted on it and found the hypothesis to have no merit. So.. IMHO even the incomplete design has proven its worth, but it needs real tuned paramter values to work as well as it could, and my opinion is that doing this now will set your fp-devicer up for success, should you choose to push further forward with it.
 
 I genuinely hope this is helpful to you.
