@@ -113,9 +113,9 @@ This is where you ask an expert. Or an LLM you trust to play one on TV. But the 
    It isn't something I have directly ever needed to do again. Intuition or pre-existing "not-my-department" business process logic has always worked well enough to excuse me from this responsibility. But, I figurewd it was time to figure it out.
    It is my current thinking that it isn't as difficult or far away as I had assumed. The high school stats I learned for writing the markdown tables of values of interest in the benchmarks is probably enough to get started. You may be far better equipped to take this on than I was, but I *felt* like it was pretty straightforward because these are things I've worked with for other purposes plenty of time.
    Three layers, essentially; maybe more but...
-   1. feature similarity
-   2. semantic transformaations
-   3. policy outputs
+   - **1** feature similarity
+   - **2** semantic transformaations
+   - **3** policy outputs
   
       
    As I've already mentioned a few times now. I think this is it. At least for now.
